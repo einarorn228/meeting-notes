@@ -271,6 +271,10 @@ class TranscriptionWorker:
         elif depth <= self.QUEUE_WARN_DEPTH // 2:
             self._warned_depth = False
 
+    def pending(self) -> int:
+        """Jobs submitted but not yet finished."""
+        return int(self._queue.unfinished_tasks)
+
     def wait_idle(self, timeout: Optional[float] = None) -> bool:
         """Block until every submitted job has finished. Returns False on timeout."""
         deadline = None if timeout is None else time.monotonic() + timeout
@@ -381,6 +385,27 @@ class StreamingSession:
         for channel, state in self._channels.items():
             self._dispatch(channel, state, state.stream.flush())
         self._worker.submit(Job(run=self._finish, description="stop", session_id=self.session_id))
+        self._report_drain()
+
+    def _report_drain(self) -> None:
+        """Emit the shrinking backlog while the queue drains.
+
+        Stopping a long meeting can leave minutes of queued audio. Without this the app shows a spinner and
+        no other sign of life, which is indistinguishable from a hang.
+        """
+
+        def run() -> None:
+            last = -1
+            while True:
+                pending = self._worker.pending()
+                if pending <= 0:
+                    return
+                if pending != last:
+                    last = pending
+                    self._emit.emit("finishing", session_id=self.session_id, pending=pending)
+                time.sleep(1.0)
+
+        threading.Thread(target=run, name="stt-drain-progress", daemon=True).start()
 
     # -- internals ----------------------------------------------------------------------------
 

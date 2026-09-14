@@ -26,6 +26,10 @@ export class LocalEngine implements TranscriptionEngine {
         cb.onSegment({ channel: ev.channel as ChannelId, start: Number(ev.start), end: Number(ev.end), text, confidence: typeof ev.avg_logprob === 'number' ? Math.exp(ev.avg_logprob) : undefined })
       } else if (ev.type === 'partial') {
         cb.onPartial(ev.channel as ChannelId, String(ev.text ?? ''), Number(ev.start))
+      } else if (ev.type === 'finishing') {
+        // Post-stop backlog. Reporting it is what separates "still working" from "hung" for the user.
+        const pending = Number(ev.pending ?? 0)
+        cb.onStatus(pending > 0 ? `Lýk við uppskrift… ${pending} bútar eftir` : 'Lýk við uppskrift…')
       } else if (ev.type === 'error') {
         cb.onError(String(ev.message), !!ev.fatal)
       }
@@ -56,7 +60,11 @@ export class LocalEngine implements TranscriptionEngine {
   async stop(): Promise<void> {
     if (!this.sessionId) return
     try {
-      await sidecar.request({ type: 'stop', session_id: this.sessionId }, 'stopped', 30 * 60 * 1000).catch((e) => this.cb?.onError(String(e)))
+      // Bounded: a wedged backend must not leave the user on a spinner indefinitely. On timeout the meeting
+      // is still saved with everything transcribed so far, and the audio can be re-transcribed later.
+      await sidecar
+        .request({ type: 'stop', session_id: this.sessionId }, 'stopped', 10 * 60 * 1000)
+        .catch((e) => this.cb?.onError(`Uppskrift kláraðist ekki: ${e instanceof Error ? e.message : String(e)}. Fundurinn er vistaður með því sem komið var; þú getur endurunnið hljóðið úr fundinum.`))
     } finally {
       if (this.listener) sidecar.off('event', this.listener)
       this.listener = null

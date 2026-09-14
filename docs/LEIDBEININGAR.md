@@ -123,6 +123,7 @@ Flipar fundarins:
 | „Kerfishljóð“-mælirinn hreyfist ekki / aðeins mín rödd er skrifuð | Athugaðu að Teams spili hljóðið í sama tæki og Windows notar sem *sjálfgefið hljóðúttak* (hægrismelltu á hátalaratáknið við klukkuna → *Sound settings*). Prófaðu aftur undir **Stillingar → Hljóð → Prófa upptöku**. |
 | Windows spyr um leyfi fyrir hljóðnema en ég ýtti á Nei | *Settings → Privacy & security → Microphone* → kveiktu á „Let desktop apps access your microphone“. |
 | Neðst til vinstri stendur „Villa“ eða „Ekki uppsett“ | Farðu í **Stillingar → Talgreining** og smelltu á **Setja upp þjónustu** og svo **Sækja líkan**. |
+| Villa um `cublas64_12.dll` eða annað skjákorts-bókasafn | Forritið prófar nú skjákortið áður en fundur hefst og skiptir sjálfkrafa yfir á örgjörvann ef það virkar ekki. Uppfærðu í nýjustu útgáfu. |
 | Villa um „float16 compute type“ þegar líkan er hlaðið | Forritið velur nú sjálft rétta stillingu fyrir tölvuna; uppfærðu í nýjustu útgáfu. Þarftu lausn strax: **Stillingar → Talgreining** → settu **Tæki** á `cpu` og **Reiknigerð** á `int8`, og smelltu svo á **Hlaða líkani**. |
 | Ekkert gerist í langan tíma eftir að ég stöðva | Stór fundur á hægri tölvu getur tekið nokkrar mínútur í vinnslu. Skildu forritið eftir opið. |
 | Samantekt verður ekki til | Það þarf gervigreindarlykil: **Stillingar → Gervigreind** → *Anthropic (Claude)* → límdu lykilinn → **Prófa tengingu**. |

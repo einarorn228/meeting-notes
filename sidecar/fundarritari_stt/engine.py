@@ -12,6 +12,8 @@ import numpy as np
 
 log = logging.getLogger("fundarritari_stt.engine")
 
+SAMPLE_RATE = 16000
+
 DEVICES = ("auto", "cpu", "cuda")
 COMPUTE_TYPES = ("auto", "int8", "float16", "float32")
 
@@ -101,6 +103,20 @@ def resolve_compute_type(compute_type: str, device: str) -> str:
     return next((c for c in preferred if c in supported), "int8")
 
 
+def _probe(model) -> None:
+    """Run one tiny inference so a backend that only fails at compute time fails here instead."""
+    segments, _ = model.transcribe(
+        np.zeros(SAMPLE_RATE // 2, dtype=np.float32),
+        language="is",
+        beam_size=1,
+        without_timestamps=True,
+        condition_on_previous_text=False,
+        vad_filter=False,
+    )
+    for _ in segments:  # the generator is lazy; consuming it is what executes the model
+        break
+
+
 def _load_candidates(device: str, compute_type: str) -> list:
     """The requested combination first, then progressively safer ones, ending at CPU int8."""
     candidates = [(device, compute_type)]
@@ -135,6 +151,8 @@ class WhisperEngine:
         self.device: Optional[str] = None
         self.compute_type: Optional[str] = None
         self.threads: Optional[int] = None
+        # Set once the engine has already fallen back at runtime, so it cannot loop reloading.
+        self._degraded = False
 
     @property
     def loaded(self) -> bool:
@@ -166,13 +184,19 @@ class WhisperEngine:
         # only give up once plain CPU int8 - which every machine can run - has also failed.
         for try_device, try_compute in _load_candidates(resolved_device, resolved_compute):
             try:
-                model = WhisperModel(
+                candidate = WhisperModel(
                     model_path,
                     device=try_device,
                     compute_type=try_compute,
                     cpu_threads=cpu_threads,
                     local_files_only=True,
                 )
+                # Constructing the model proves almost nothing: on a machine with an NVIDIA GPU but no CUDA
+                # runtime it succeeds, and the first real segment then dies with "Library cublas64_12.dll is
+                # not found or cannot be loaded". So run one throwaway inference here, while there is still
+                # somewhere to fall back to, instead of discovering it mid-meeting.
+                _probe(candidate)
+                model = candidate
             except Exception as exc:  # noqa: BLE001 - any backend failure is worth falling back from
                 errors.append(f"{try_device}/{try_compute}: {exc}")
                 log.warning("could not load %s on %s/%s: %s", model_id, try_device, try_compute, exc)
@@ -213,6 +237,27 @@ class WhisperEngine:
         audio = np.ascontiguousarray(np.asarray(audio, dtype=np.float32))
         if audio.size == 0:
             return TranscriptionResult(text="", avg_logprob=0.0, no_speech_prob=1.0)
+        try:
+            return self._run(audio, language=language, initial_prompt=initial_prompt, beam_size=beam_size)
+        except Exception as exc:  # noqa: BLE001 - a dying backend must not cost the user the whole meeting
+            if self._degraded or self.device == "cpu" or self.model_path is None:
+                raise
+            # The backend broke after loading cleanly. Rather than failing every remaining segment, drop to
+            # CPU once and carry on: slower, but the meeting still gets transcribed.
+            log.warning("transcription failed on %s/%s (%s); falling back to cpu/int8", self.device, self.compute_type, exc)
+            self._degraded = True
+            self.load(self.model_path, model_id=self.model_id or "", device="cpu", compute_type="int8", threads=self.threads)
+            return self._run(audio, language=language, initial_prompt=initial_prompt, beam_size=beam_size)
+
+    def _run(
+        self,
+        audio: np.ndarray,
+        *,
+        language: Optional[str],
+        initial_prompt: Optional[str],
+        beam_size: int,
+    ) -> TranscriptionResult:
+        assert self.model is not None
         segments, info = self.model.transcribe(
             audio,
             language=normalize_language(language),
