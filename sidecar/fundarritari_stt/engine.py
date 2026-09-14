@@ -6,7 +6,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass
-from typing import Optional, Protocol
+from typing import Callable, Optional, Protocol
 
 import numpy as np
 
@@ -104,17 +104,35 @@ def resolve_compute_type(compute_type: str, device: str) -> str:
 
 
 def _probe(model) -> None:
-    """Run one tiny inference so a backend that only fails at compute time fails here instead."""
-    segments, _ = model.transcribe(
-        np.zeros(SAMPLE_RATE // 2, dtype=np.float32),
-        language="is",
-        beam_size=1,
-        without_timestamps=True,
-        condition_on_previous_text=False,
-        vad_filter=False,
-    )
-    for _ in segments:  # the generator is lazy; consuming it is what executes the model
-        break
+    """Run one tiny forward pass so a backend that only fails at compute time fails here instead.
+
+    Deliberately *not* a full transcribe. Whisper fed silence decodes to the token limit and then repeats the
+    whole thing at every fallback temperature: measured at 52 s for ``small`` and minutes for ``large-v3``, per
+    candidate, which made loading look like it had hung. Detecting the language runs the encoder and one
+    decoder step - the same cuBLAS path that fails when the CUDA runtime is missing - in about a second.
+    """
+    audio = np.zeros(SAMPLE_RATE // 2, dtype=np.float32)
+    detect = getattr(model, "detect_language", None)
+    if callable(detect):
+        detect(audio)
+        return
+    # Older faster-whisper builds have no detect_language; the encoder alone still exercises the GPU.
+    encode = getattr(model, "encode", None)
+    extractor = getattr(model, "feature_extractor", None)
+    if callable(encode) and extractor is not None:
+        features = extractor(audio)
+        encode(features[..., : extractor.nb_max_frames])
+
+
+# A missing CUDA library breaks every compute type on the device, so the remaining ones are not worth the
+# minutes it takes to load a multi-gigabyte model again. An unsupported compute type says nothing about the
+# device, so its wording ("...do not support efficient float16 computation") deliberately matches nothing here.
+_DEVICE_FAILURE_MARKERS = ("cublas", "cudnn", "cuda", "libcu", "no kernel image", "gpu")
+
+
+def _is_device_failure(exc: BaseException) -> bool:
+    message = str(exc).lower()
+    return any(marker in message for marker in _DEVICE_FAILURE_MARKERS)
 
 
 def _load_candidates(device: str, compute_type: str) -> list:
@@ -166,7 +184,10 @@ class WhisperEngine:
         device: str = "auto",
         compute_type: str = "auto",
         threads: Optional[int] = None,
+        on_attempt: Optional[Callable[[str, str], None]] = None,
     ) -> LoadInfo:
+        """Load ``model_id``, falling back through safer backends. ``on_attempt`` is called with the device and
+        compute type before each try, so the app can show which one is being loaded instead of a mute spinner."""
         from faster_whisper import WhisperModel
 
         resolved_device = resolve_device(device)
@@ -182,7 +203,12 @@ class WhisperEngine:
         # Capability queries do not catch everything: a CUDA build can pass the compute-type check and then
         # fail on a missing cuDNN at load time. So try the plan, then progressively safer combinations, and
         # only give up once plain CPU int8 - which every machine can run - has also failed.
+        unusable_devices: set = set()
         for try_device, try_compute in _load_candidates(resolved_device, resolved_compute):
+            if try_device in unusable_devices:
+                continue
+            if on_attempt is not None:
+                on_attempt(try_device, try_compute)
             try:
                 candidate = WhisperModel(
                     model_path,
@@ -200,6 +226,11 @@ class WhisperEngine:
             except Exception as exc:  # noqa: BLE001 - any backend failure is worth falling back from
                 errors.append(f"{try_device}/{try_compute}: {exc}")
                 log.warning("could not load %s on %s/%s: %s", model_id, try_device, try_compute, exc)
+                if try_device != "cpu" and _is_device_failure(exc):
+                    # Its CUDA runtime is broken, not just this precision. Reloading gigabytes to watch the
+                    # same library fail again only makes the user wait longer.
+                    log.warning("%s is unusable on this machine; skipping its remaining compute types", try_device)
+                    unusable_devices.add(try_device)
                 continue
             if (try_device, try_compute) != (resolved_device, resolved_compute):
                 log.info("fell back to %s/%s for %s", try_device, try_compute, model_id)

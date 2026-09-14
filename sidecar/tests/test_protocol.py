@@ -113,8 +113,10 @@ def test_stream_session_flow(server: Server, sink: RecordingSink, fake_engine: F
 def test_load_model_flow_with_fake_download(server: Server, sink: RecordingSink, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     loads = []
 
-    def fake_load(path, *, model_id, device, compute_type, threads):
+    def fake_load(path, *, model_id, device, compute_type, threads, on_attempt=None):
         loads.append((path, model_id, device, compute_type, threads))
+        if on_attempt is not None:
+            on_attempt("cpu", "int8")
         return FakeEngine.load(server.engine, path, model_id=model_id)
 
     def fake_download(model_id, repo, models_dir, emit):
@@ -132,6 +134,12 @@ def test_load_model_flow_with_fake_download(server: Server, sink: RecordingSink,
     types = [e["type"] for e in sink.events]
     assert types.index("progress") < types.index("model_downloaded") < types.index("model_loaded")
     assert any(e["type"] == "status" and e["state"] == "loading-model" for e in sink.events)
+    # Which backend is being tried has to reach the app: loading a 3 GB model is slow enough that a message
+    # which never changes reads as a freeze.
+    assert any(
+        e["type"] == "status" and e["state"] == "loading-model" and e.get("compute_type") == "int8"
+        for e in sink.events
+    ), "the attempted backend must be reported while loading"
     assert sink.of_type("status")[-1]["state"] == "ready"
     assert loads == [(str(tmp_path / "aalto-large-v3-is"), "aalto-large-v3-is", "cpu", "auto", 2)]
     assert sink.of_type("model_loaded")[0]["compute_type"] == "int8"

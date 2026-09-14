@@ -51,11 +51,11 @@ class _Info:
     language = "is"
 
 
-def _fake_model_class(attempted: list, fail_construct=(), broken_devices=()):
+def _fake_model_class(attempted: list, fail_construct=(), broken_devices=(), transcribed=None):
     """A stand-in for WhisperModel that can fail at construction, or at inference on whole devices.
 
     A missing CUDA library breaks every compute type on that device, not just one - that is what
-    ``broken_devices`` models.
+    ``broken_devices`` models. ``transcribed`` records every full transcribe, which the load must not need.
     """
 
     class FakeModel:
@@ -69,7 +69,14 @@ def _fake_model_class(attempted: list, fail_construct=(), broken_devices=()):
                     "efficient float16 computation."
                 )
 
+        def detect_language(self, audio):
+            if self.device in broken_devices:
+                raise RuntimeError("Library cublas64_12.dll is not found or cannot be loaded")
+            return "is", 0.9, []
+
         def transcribe(self, audio, **kwargs):
+            if transcribed is not None:
+                transcribed.append(audio.size)
             if self.device in broken_devices:
                 raise RuntimeError("Library cublas64_12.dll is not found or cannot be loaded")
             return iter(()), _Info()
@@ -118,13 +125,12 @@ def test_runtime_failure_falls_back_to_cpu_instead_of_losing_the_meeting(monkeyp
 
     attempted: list = []
     FakeModel = _fake_model_class(attempted)
-    probe_samples = engine.SAMPLE_RATE // 2
 
     class BreaksAfterProbe(FakeModel):
         """Passes the load-time probe, then fails on real audio - the worst case for the user."""
 
         def transcribe(self, audio, **kwargs):
-            if self.device == "cuda" and audio.size > probe_samples:
+            if self.device == "cuda":
                 raise RuntimeError("Library cublas64_12.dll is not found or cannot be loaded")
             return iter(()), _Info()
 
@@ -154,3 +160,58 @@ def test_load_raises_with_every_failure_listed(monkeypatch, tmp_path):
 
     with pytest.raises(RuntimeError, match="no backend"):
         engine.WhisperEngine().load(str(tmp_path), model_id="m", device="cpu", compute_type="auto")
+
+
+def test_loading_never_runs_a_full_transcribe(monkeypatch, tmp_path):
+    """The load-time probe must stay cheap.
+
+    Probing with ``transcribe`` on silence measured 52 s for ``small`` and minutes for ``large-v3``, because
+    Whisper decodes to the token limit and repeats that at every fallback temperature. Multiplied by the
+    fallback candidates, loading looked like it had frozen - and every queued segment waited behind it.
+    """
+    import faster_whisper
+
+    attempted: list = []
+    transcribed: list = []
+    monkeypatch.setattr(faster_whisper, "WhisperModel", _fake_model_class(attempted, transcribed=transcribed))
+    monkeypatch.setattr(engine, "supported_compute_types", lambda device: CPU_ONLY)
+    monkeypatch.setattr(engine, "cuda_available", lambda: False)
+
+    engine.WhisperEngine().load(str(tmp_path), model_id="m", device="auto", compute_type="auto")
+
+    assert transcribed == [], "the probe must not decode; detecting the language is enough to reach the GPU"
+
+
+def test_a_broken_gpu_is_not_retried_with_every_compute_type(monkeypatch, tmp_path):
+    """A missing CUDA library breaks the device, so reloading gigabytes onto it again only costs the user time."""
+    import faster_whisper
+
+    attempted: list = []
+    monkeypatch.setattr(faster_whisper, "WhisperModel", _fake_model_class(attempted, broken_devices={"cuda"}))
+    monkeypatch.setattr(engine, "supported_compute_types", lambda device: CPU_ONLY | {"float16", "int8_float16"})
+    monkeypatch.setattr(engine, "cuda_available", lambda: True)
+
+    info = engine.WhisperEngine().load(str(tmp_path), model_id="m", device="auto", compute_type="auto")
+
+    cuda_attempts = [c for c in attempted if c[0] == "cuda"]
+    assert len(cuda_attempts) == 1, f"CUDA proved unusable once; it was retried anyway: {cuda_attempts}"
+    assert info.device == "cpu"
+
+
+def test_an_unsupported_compute_type_still_tries_the_same_device(monkeypatch, tmp_path):
+    """The opposite case: float16 being unsupported says nothing about the GPU, so int8 on it is still worth trying."""
+    import faster_whisper
+
+    attempted: list = []
+    monkeypatch.setattr(
+        faster_whisper,
+        "WhisperModel",
+        _fake_model_class(attempted, fail_construct={("cuda", "float16")}),
+    )
+    monkeypatch.setattr(engine, "supported_compute_types", lambda device: CPU_ONLY | {"float16", "int8_float16"})
+    monkeypatch.setattr(engine, "cuda_available", lambda: True)
+
+    info = engine.WhisperEngine().load(str(tmp_path), model_id="m", device="auto", compute_type="auto")
+
+    assert info.device == "cuda", "the card works, only float16 did not"
+    assert attempted[0] == ("cuda", "float16")

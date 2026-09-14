@@ -125,6 +125,7 @@ Flipar fundarins:
 | Neðst til vinstri stendur „Villa“ eða „Ekki uppsett“ | Farðu í **Stillingar → Talgreining** og smelltu á **Setja upp þjónustu** og svo **Sækja líkan**. |
 | Villa um `cublas64_12.dll` eða annað skjákorts-bókasafn | Forritið prófar nú skjákortið áður en fundur hefst og skiptir sjálfkrafa yfir á örgjörvann ef það virkar ekki. Uppfærðu í nýjustu útgáfu. |
 | Villa um „float16 compute type“ þegar líkan er hlaðið | Forritið velur nú sjálft rétta stillingu fyrir tölvuna; uppfærðu í nýjustu útgáfu. Þarftu lausn strax: **Stillingar → Talgreining** → settu **Tæki** á `cpu` og **Reiknigerð** á `int8`, og smelltu svo á **Hlaða líkani**. |
+| „Hleð líkani…“ stendur mjög lengi og ekkert er skrifað á fundi | Uppfærðu í nýjustu útgáfu – í 0.1.5 og 0.1.6 gat hleðslan tekið margar mínútur og upptakan beið á meðan. Í nýrri útgáfum tekur hún hálfa til eina mínútu og sýnir hvaða vél er notuð („Hleð talgreiningarlíkani á cpu/int8…“). |
 | Ekkert gerist í langan tíma eftir að ég stöðva | Stór fundur á hægri tölvu getur tekið nokkrar mínútur í vinnslu. Skildu forritið eftir opið. |
 | Samantekt verður ekki til | Það þarf gervigreindarlykil: **Stillingar → Gervigreind** → *Anthropic (Claude)* → límdu lykilinn → **Prófa tengingu**. |
 | Ég vil byrja upp á nýtt | **Stillingar → Persónuvernd → Opna möppu** – þar eru allir fundir sem möppur. Það má eyða þeim. |

@@ -239,8 +239,11 @@ export class SidecarManager extends EventEmitter {
     }
     if (ev.type === 'status') {
       const st = ev.state as SidecarStatus['state']
+      // The backend being tried is worth showing: loading a 3 GB model takes a while, and a machine whose
+      // CUDA is broken loads it twice. A message that changes is the difference between "working" and "stuck".
+      const backend = ev.device ? `${ev.device}${ev.compute_type ? `/${ev.compute_type}` : ''}` : ''
       const friendly: Partial<Record<SidecarStatus['state'], string>> = {
-        'loading-model': 'Hleð talgreiningarlíkani (tekur um hálfa mínútu)…',
+        'loading-model': backend ? `Hleð talgreiningarlíkani á ${backend}…` : 'Hleð talgreiningarlíkani…',
         'downloading-model': 'Sæki talgreiningarlíkan…',
         ready: 'Talgreining tilbúin',
         idle: 'Talgreiningarþjónusta í gangi'
@@ -330,11 +333,20 @@ export class SidecarManager extends EventEmitter {
     if (this.loadedModel && this.loadedModel.modelId === info.id && this.loadedModel.requestedDevice === device && this.loadedModel.requestedComputeType === computeType) return
     if (!this.installedModels().includes(info.id)) await this.downloadModel(info.id)
     this.setStatus({ state: 'loading-model', modelId: info.id, message: `Hleð líkani ${info.label}…`, progress: undefined })
+    // Bounded, and the failure is left visible: a load that never returns used to leave the spinner turning
+    // forever, with every recorded segment queued behind it inside the sidecar.
     const ev = await this.request(
       { type: 'load_model', model_id: info.id, repo: info.repo, models_dir: modelsDir(), device, compute_type: computeType, threads: s.local.threads },
       'model_loaded',
-      30 * 60 * 1000
-    )
+      15 * 60 * 1000
+    ).catch((e: unknown) => {
+      const raw = e instanceof Error ? e.message : String(e)
+      const message = raw.startsWith('sidecar timeout')
+        ? `Líkanið kláraði ekki að hlaðast (gafst upp eftir 15 mínútur). Prófaðu minna líkan, eða settu Tæki á "cpu" og Reiknigerð á "int8" í Stillingum.`
+        : raw
+      this.setStatus({ state: 'error', modelId: info.id, message })
+      throw new Error(message)
+    })
     // Keep both: the request decides whether a reload is needed, the resolved pair is what is shown.
     this.loadedModel = {
       modelId: info.id,

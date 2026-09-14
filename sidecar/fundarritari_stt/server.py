@@ -209,8 +209,25 @@ class Server:
                     self._download(model_id, repo, models_dir, self._emit)
                     self._emit.emit("model_downloaded", model_id=model_id)
                 self._status("loading-model", f"Loading {model_id}", model_id=model_id)
+
+                def on_attempt(try_device: str, try_compute: str) -> None:
+                    # Loading a multi-gigabyte model takes a while and may be retried on another backend.
+                    # Saying which one is being tried is what keeps the progress bar from looking stuck.
+                    self._status(
+                        "loading-model",
+                        f"Loading {model_id} on {try_device}/{try_compute}",
+                        model_id=model_id,
+                        device=try_device,
+                        compute_type=try_compute,
+                    )
+
                 info = self.engine.load(
-                    str(path), model_id=model_id, device=device, compute_type=compute_type, threads=threads
+                    str(path),
+                    model_id=model_id,
+                    device=device,
+                    compute_type=compute_type,
+                    threads=threads,
+                    on_attempt=on_attempt,
                 )
                 self._emit.emit(
                     "model_loaded",
