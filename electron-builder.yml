@@ -67,5 +67,9 @@ linux:
   icon: build/icon.png
   artifactName: ${productName}-Setup-linux-${arch}.${ext}
 publish:
+  # owner/repo are explicit so the app-update.yml baked into the build always points here, whatever remote
+  # the release is built from. electron-updater reads it to find new versions.
   provider: github
+  owner: einarorn228
+  repo: meeting-notes
   releaseType: release

@@ -435,5 +435,19 @@ export const en: Record<TranslationKey, string> = {
   'settings.engine.compute': 'Compute precision',
   'settings.engine.modelsDir': 'Models are stored in the data folder under "models".',
 
+  'update.ready': 'Version {version} is ready. Restart to finish the update.',
+  'update.restart': 'Restart now',
+  'update.available': 'Version {version} is available.',
+  'update.download': 'Download',
+  'update.downloading': 'Downloading update ({version})…',
+  'update.title': 'Updates',
+  'update.current': 'Installed version: {version}',
+  'update.check': 'Check for updates',
+  'update.checking': 'Checking…',
+  'update.upToDate': 'You are on the latest version.',
+  'update.error': 'Update failed: {msg}',
+  'update.manualHint': 'This build cannot update itself. Download the new version from the releases page when one appears.',
+  'update.autoHint': 'The app checks for updates and downloads them in the background. You only need to restart when prompted.',
+
   'app.other': 'Other'
 }

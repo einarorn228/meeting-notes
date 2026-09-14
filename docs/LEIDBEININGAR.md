@@ -30,6 +30,10 @@ Skráin heitir `Fundarritari-Setup-win-x64.exe` og er um 190 MB. Hún vistast ve
 3. Fylgdu uppsetningarglugganum: **Next → Next → Install → Finish**. Þú mátt hafa allt á sjálfgefnum stillingum.
 4. Fundarritari opnast sjálfkrafa og flýtileið birtist á skjáborðinu.
 
+> **Ertu þegar með eldri útgáfu?** Þú þarft **ekki** að eyða henni fyrst. Keyrðu bara nýju skrána yfir –
+> uppsetningin skiptir út gömlu útgáfunni og heldur öllum stillingum, fundum og líkönum. Eftir þessa
+> uppsetningu sér forritið sjálft um uppfærslur (sjá kafla 8).
+
 ## 3. Fyrsta ræsing – uppsetningarhjálpin (tekur 2–3 mínútur)
 
 Þegar forritið opnast í fyrsta sinn leiðir það þig í gegnum sjö einföld skref. Smelltu á **Byrjum →** og svo **Áfram →**
@@ -123,7 +127,19 @@ Flipar fundarins:
 | Samantekt verður ekki til | Það þarf gervigreindarlykil: **Stillingar → Gervigreind** → *Anthropic (Claude)* → límdu lykilinn → **Prófa tengingu**. |
 | Ég vil byrja upp á nýtt | **Stillingar → Persónuvernd → Opna möppu** – þar eru allir fundir sem möppur. Það má eyða þeim. |
 
-## 8. Hvað verður um gögnin?
+## 8. Uppfærslur – forritið uppfærir sig sjálft
+
+Þú þarft **ekki** að sækja nýja útgáfu handvirkt eftir þessa uppsetningu.
+
+- Forritið athugar sjálft hvort ný útgáfa sé komin (við ræsingu og einu sinni á dag) og **sækir hana í bakgrunni**.
+- Þegar hún er tilbúin birtist blá lína efst í glugganum: *„Ný útgáfa er tilbúin“* með takkanum **Endurræsa núna**.
+  Smelltu á hann þegar þér hentar – uppfærslan tekur nokkrar sekúndur og öll gögnin þín haldast óbreytt.
+- Þú getur líka leitað sjálf(ur): **Stillingar → Almennt → Uppfærslur → Leita að uppfærslum**.
+- Ef upptaka er í gangi neitar forritið að endurræsa sig. Stöðvaðu upptökuna fyrst.
+
+Á Mac uppfærir forritið sig ekki sjálft; þar lætur það þig vita og þú sækir nýju útgáfuna með einum smelli.
+
+## 9. Hvað verður um gögnin?
 
 Allt – hljóðupptökur, uppskriftir og fundargerðir – er geymt **á þinni tölvu** (`C:\Users\<þú>\AppData\Roaming\Fundarritari\data`).
 Ekkert fer á netið nema þú veljir gervigreindarþjónustu (Claude) fyrir samantektir; þá er textinn (ekki hljóðið) sendur

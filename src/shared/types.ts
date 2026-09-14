@@ -314,6 +314,18 @@ export const DEFAULT_SETTINGS: Settings = {
 }
 
 /** Events pushed from main to renderer. */
+export interface UpdateStatus {
+  state: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'up-to-date' | 'error'
+  currentVersion: string
+  /** The newer version, once one is found. */
+  version?: string
+  progress?: number
+  message?: string
+  /** False on macOS and .deb installs, where a new version has to be downloaded by hand. */
+  canSelfUpdate: boolean
+  releasesUrl: string
+}
+
 export interface MainEvents {
   'recording:state': RecordingState
   'transcript:segment': { meetingId: string; segment: Segment }
@@ -328,6 +340,7 @@ export interface MainEvents {
   'hotkey:markHighlight': void
   'navigate': { route: string }
   'ai:progress': { meetingId: string; stage: string; progress?: number }
+  'update:status': UpdateStatus
 }
 
 export type MainEventName = keyof MainEvents

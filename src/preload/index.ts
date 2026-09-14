@@ -14,7 +14,8 @@ import type {
   Settings,
   SidecarStatus,
   Summary,
-  SummaryTemplate
+  SummaryTemplate,
+  UpdateStatus
 } from '../shared/types'
 
 export interface FundarritariApi {
@@ -67,6 +68,11 @@ export interface FundarritariApi {
   downloadModel(modelId: string): Promise<void>
   warmUpLocalEngine(): Promise<void>
   testEngine(engine: string): Promise<{ ok: boolean; message: string }>
+
+  // ---- updates ----
+  getUpdateStatus(): Promise<UpdateStatus>
+  checkForUpdates(): Promise<UpdateStatus>
+  installUpdate(): Promise<void>
 
   // ---- detection / calendar ----
   getDetectedMeeting(): Promise<DetectedMeeting | null>
@@ -133,6 +139,10 @@ const api: FundarritariApi = {
   downloadModel: (modelId) => invoke('sidecar:downloadModel', modelId),
   warmUpLocalEngine: () => invoke('sidecar:warmup'),
   testEngine: (engine) => invoke('engine:test', engine),
+
+  getUpdateStatus: () => invoke('update:status'),
+  checkForUpdates: () => invoke('update:check'),
+  installUpdate: () => invoke('update:install'),
 
   getDetectedMeeting: () => invoke('detection:current'),
   getUpcomingEvents: () => invoke('calendar:upcoming'),

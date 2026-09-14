@@ -15,6 +15,7 @@ import { RecordingSession, appLabel } from './session'
 import { audioPath, deleteAudio, deleteMeeting, listMeetings, loadMeeting, meetingDir, newId, saveMeeting, searchMeetings, updateMeeting } from './store'
 import { createEngine, testEngine } from './transcription'
 import { sidecar } from './transcription/sidecar'
+import { checkForUpdates, getUpdateStatus, installUpdate } from './updater'
 import type { MeetingDetector } from './detect/apps'
 import type { CalendarService } from './detect/calendar'
 
@@ -329,6 +330,10 @@ export function registerIpc(ctx: AppContext): void {
   h('app:openPath', (_e, p: string) => shell.openPath(p).then(() => undefined))
   h('app:openExternal', (_e, u: string) => (/^https?:\/\//.test(u) ? shell.openExternal(u) : Promise.resolve()))
   h('app:showInFolder', (_e, p: string) => shell.showItemInFolder(p))
+
+  h('update:status', () => getUpdateStatus())
+  h('update:check', () => checkForUpdates(true))
+  h('update:install', async () => installUpdate())
 
   h('sidecar:status', () => sidecar.getStatus())
   h('sidecar:install', () => sidecar.install())

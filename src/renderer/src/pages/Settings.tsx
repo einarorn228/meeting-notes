@@ -11,6 +11,7 @@ import { listMicrophones, testCapture } from '@/audio/capture'
 import { Alert, Badge, Button, Card, Field, ProgressBar, Select, TextArea, TextInput, Toggle } from '@/components/ui'
 import { Icon } from '@/components/Icons'
 import { LevelMeter } from '@/components/LevelMeter'
+import { useUpdateStatus } from '@/components/UpdateBanner'
 import { errorMessage, mbToGb } from '@/utils/format'
 
 const SECTIONS: SettingsSection[] = ['general', 'audio', 'engine', 'llm', 'vocabulary', 'detection', 'hotkeys', 'privacy']
@@ -56,7 +57,8 @@ function GeneralSection(): ReactNode {
   const { t } = useI18n()
   const { settings, update } = useSettings()
   return (
-    <Card title={t('settings.section.general')}>
+    <>
+      <Card title={t('settings.section.general')}>
       <Field label={t('settings.general.uiLanguage')}>
         <Select value={settings.uiLanguage} onChange={(e) => update({ uiLanguage: e.target.value as 'is' | 'en' })} style={{ width: 240 }}>
           <option value="is">Íslenska</option>
@@ -71,6 +73,39 @@ function GeneralSection(): ReactNode {
         </Select>
       </Field>
       <Toggle checked={settings.storage.keepAudio} onChange={(v) => update({ storage: { ...settings.storage, keepAudio: v } })} label={t('settings.general.keepAudio')} hint={t('settings.general.keepAudioHint')} />
+      </Card>
+      <UpdateSection />
+    </>
+  )
+}
+
+/** Version + a manual "check for updates"; the automatic path surfaces through <UpdateBanner />. */
+function UpdateSection(): ReactNode {
+  const { t } = useI18n()
+  const status = useUpdateStatus()
+  const [checking, setChecking] = useState(false)
+  const check = async (): Promise<void> => {
+    setChecking(true)
+    try {
+      await api.checkForUpdates()
+    } finally {
+      setChecking(false)
+    }
+  }
+  return (
+    <Card title={t('update.title')}>
+      <div className="muted small">{t('update.current', { version: status?.currentVersion ?? '…' })}</div>
+      <p className="muted small">{status && !status.canSelfUpdate ? t('update.manualHint') : t('update.autoHint')}</p>
+      {status?.state === 'up-to-date' && <Alert tone="success">{t('update.upToDate')}</Alert>}
+      {status?.state === 'error' && <Alert tone="danger">{t('update.error', { msg: status.message ?? '' })}</Alert>}
+      <div className="row gap-sm">
+        <Button size="sm" icon="refresh" loading={checking || status?.state === 'checking'} onClick={() => void check()}>
+          {checking || status?.state === 'checking' ? t('update.checking') : t('update.check')}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => status && void api.openExternal(status.releasesUrl)}>
+          {t('update.download')}
+        </Button>
+      </div>
     </Card>
   )
 }

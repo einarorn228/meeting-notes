@@ -442,6 +442,20 @@ export const is = {
   'settings.engine.compute': 'Reikninákvæmni',
   'settings.engine.modelsDir': 'Líkön eru geymd í gagnamöppunni undir „models“.',
 
+  'update.ready': 'Ný útgáfa ({version}) er tilbúin. Endurræstu til að klára uppfærsluna.',
+  'update.restart': 'Endurræsa núna',
+  'update.available': 'Ný útgáfa ({version}) er komin.',
+  'update.download': 'Sækja',
+  'update.downloading': 'Sæki uppfærslu ({version})…',
+  'update.title': 'Uppfærslur',
+  'update.current': 'Uppsett útgáfa: {version}',
+  'update.check': 'Leita að uppfærslum',
+  'update.checking': 'Leita…',
+  'update.upToDate': 'Þú ert með nýjustu útgáfuna.',
+  'update.error': 'Uppfærslan mistókst: {msg}',
+  'update.manualHint': 'Þessi útgáfa uppfærir sig ekki sjálf. Sæktu nýja útgáfu af niðurhalssíðunni þegar hún birtist.',
+  'update.autoHint': 'Appið leitar sjálfkrafa að uppfærslum og sækir þær í bakgrunni. Þú þarft aðeins að endurræsa þegar boðið er upp á það.',
+
   'app.other': 'Annað'
 }
 

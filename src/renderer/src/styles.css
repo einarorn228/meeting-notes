@@ -152,6 +152,14 @@ mark { background: #ffe58a; color: #111; border-radius: 3px; padding: 0 1px; }
 .tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .tag-input { border: 0; background: transparent; font: inherit; color: var(--text); outline: none; min-width: 120px; font-size: 12.5px; }
 .alert { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; background: var(--info-soft); border: 1px solid transparent; }
+.update-banner {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin: 0 0 16px; padding: 10px 14px; border-radius: 10px;
+  background: var(--accent-soft); color: var(--accent); font-weight: 500;
+}
+.update-banner-quiet { background: var(--panel-2); color: var(--muted); font-weight: 400; }
+.update-banner-progress { flex: 1; min-width: 160px; }
+
 /* pre-wrap so multi-line diagnostics (e.g. the sidecar's last error lines) stay readable. */
 .alert-body { flex: 1; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
 .alert-action { display: flex; gap: 8px; align-items: center; }

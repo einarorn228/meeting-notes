@@ -6,6 +6,7 @@ import { ToastProvider, useToast } from './hooks/useToast'
 import { RecordingProvider, useRecording } from './hooks/useRecordingController'
 import { Sidebar } from './components/Sidebar'
 import { Toasts } from './components/Toasts'
+import { UpdateBanner } from './components/UpdateBanner'
 import { Spinner } from './components/ui'
 import { HomePage } from './pages/Home'
 import { RecordingPage } from './pages/Recording'
@@ -70,7 +71,10 @@ function Screen(): ReactNode {
   return (
     <div className="app-shell">
       <Sidebar />
-      <main className="main">{page}</main>
+      <main className="main">
+        <UpdateBanner />
+        {page}
+      </main>
     </div>
   )
 }

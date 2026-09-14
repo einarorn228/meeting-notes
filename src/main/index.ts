@@ -9,6 +9,7 @@ import { MeetingDetector } from './detect/apps'
 import { CalendarService } from './detect/calendar'
 import { sidecar } from './transcription/sidecar'
 import { meetingsDir } from './store'
+import { initUpdater } from './updater'
 
 const here = typeof __dirname !== 'undefined' ? __dirname : (import.meta.dirname as string)
 let mainWindow: BrowserWindow | null = null
@@ -198,6 +199,7 @@ app.whenReady().then(() => {
   )
 
   registerIpc({ getWindow: () => mainWindow, showWindow, detector, calendar })
+  initUpdater((st) => broadcast('update:status', st), isRecording)
   sidecar.on('log', (line: string) => console.error('[stt]', line))
   mainWindow = createWindow()
   buildTray()
