@@ -1,3 +1,4 @@
+import { dateIs, dateTimeIs } from '../shared/dates'
 import { writeFileSync } from 'node:fs'
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from 'docx'
 import type { Meeting } from '../shared/types'
@@ -11,7 +12,7 @@ export function toMarkdown(m: Meeting): string {
   const out: string[] = []
   out.push(`# ${m.title}`)
   out.push('')
-  out.push(`- Dagsetning: ${new Date(m.createdAt).toLocaleString('is-IS')}`)
+  out.push(`- Dagsetning: ${dateTimeIs(new Date(m.createdAt))}`)
   out.push(`- Lengd: ${formatTime(m.durationSec)}`)
   if (m.app) out.push(`- Forrit: ${m.app}`)
   if (m.participants.length) out.push(`- Þátttakendur: ${m.participants.join(', ')}`)
@@ -41,7 +42,7 @@ export function toMarkdown(m: Meeting): string {
 }
 
 export function toText(m: Meeting): string {
-  const lines = [m.title, new Date(m.createdAt).toLocaleString('is-IS'), '']
+  const lines = [m.title, dateTimeIs(new Date(m.createdAt)), '']
   if (m.summary) lines.push(m.summary.markdown.replace(/[#*_`]/g, ''), '')
   lines.push('UPPSKRIFT', '')
   for (const s of m.segments.filter((x) => !x.partial)) lines.push(`[${formatTime(s.start)}] ${speaker(m, s.speaker)}: ${s.text}`)
@@ -94,7 +95,7 @@ function mdToParagraphs(md: string): Paragraph[] {
 
 export async function toDocx(m: Meeting): Promise<Buffer> {
   const children: Paragraph[] = [new Paragraph({ text: m.title, heading: HeadingLevel.TITLE })]
-  children.push(new Paragraph(`${new Date(m.createdAt).toLocaleString('is-IS')} · ${formatTime(m.durationSec)}${m.participants.length ? ' · ' + m.participants.join(', ') : ''}`))
+  children.push(new Paragraph(`${dateTimeIs(new Date(m.createdAt))} · ${formatTime(m.durationSec)}${m.participants.length ? ' · ' + m.participants.join(', ') : ''}`))
   if (m.summary) children.push(...mdToParagraphs(m.summary.markdown.replace(/^#\s.*\n?/, '')))
   if (m.notes.trim()) {
     children.push(new Paragraph({ text: 'Glósur', heading: HeadingLevel.HEADING_2 }))
@@ -124,7 +125,7 @@ export function toHtml(m: Meeting): string {
   const transcript = m.segments.filter((x) => !x.partial).map((s) => `<p><b>[${formatTime(s.start)}] ${esc(speaker(m, s.speaker))}:</b> ${esc(s.text)}</p>`).join('\n')
   return `<!doctype html><html lang="is"><head><meta charset="utf-8"><title>${esc(m.title)}</title>
 <style>body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:800px;margin:40px auto;line-height:1.5;color:#111}h1{font-size:24px}h2{font-size:18px;margin-top:24px;border-bottom:1px solid #ddd}li{margin:2px 0}p{margin:6px 0}.meta{color:#555}</style></head><body>
-<h1>${esc(m.title)}</h1><p class="meta">${new Date(m.createdAt).toLocaleString('is-IS')} · ${formatTime(m.durationSec)}</p>
+<h1>${esc(m.title)}</h1><p class="meta">${dateTimeIs(new Date(m.createdAt))} · ${formatTime(m.durationSec)}</p>
 ${m.summary ? mdHtml(m.summary.markdown.replace(/^#\s.*\n?/, '')) : ''}
 ${m.notes.trim() ? `<h2>Glósur</h2>${mdHtml(m.notes)}` : ''}
 <h2>Uppskrift</h2>${transcript}</body></html>`

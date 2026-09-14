@@ -3,6 +3,7 @@
  * pin the output language, forbid drift into English/Danish/Norwegian, give headings verbatim, use low temperature,
  * fixed frames for action items to avoid declension errors, and pass names/vocabulary for normalisation.
  */
+import { dateIs, dateTimeIs } from '../../shared/dates'
 import type { Meeting, SummaryTemplate } from '../../shared/types'
 import { formatTime } from '../store'
 
@@ -50,7 +51,7 @@ export function summaryUserPrompt(m: Meeting, tpl: SummaryTemplate, lang: string
   const sections = ic ? tpl.sections.is : tpl.sections.en
   const parts: string[] = []
   parts.push(ic ? `Fundur: ${m.title}` : `Meeting: ${m.title}`)
-  parts.push(ic ? `Dagsetning: ${new Date(m.createdAt).toLocaleString('is-IS')}` : `Date: ${new Date(m.createdAt).toLocaleString('en-GB')}`)
+  parts.push(ic ? `Dagsetning: ${dateTimeIs(new Date(m.createdAt))}` : `Date: ${new Date(m.createdAt).toLocaleString('en-GB')}`)
   parts.push(ic ? `Lengd: ${formatTime(m.durationSec)}` : `Duration: ${formatTime(m.durationSec)}`)
   if (m.participants.length) parts.push((ic ? 'Þátttakendur: ' : 'Participants: ') + m.participants.join(', '))
   if (vocabulary.length) parts.push((ic ? 'Orðalisti (rétt rituð nöfn og hugtök): ' : 'Vocabulary (correct spellings): ') + vocabulary.join(', '))
@@ -92,5 +93,5 @@ export function chatSystemPrompt(lang: string, m: Meeting | null): string {
     ? 'Þú ert aðstoðarmaður sem svarar spurningum um fundi út frá uppskriftum þeirra. Svaraðu á íslensku, stutt og skýrt, og vísaðu í tímastimpil [mm:ss] og ræðumann þegar það á við. Ef svarið kemur ekki fram í uppskriftinni, segðu það hreinskilnislega.'
     : 'You answer questions about meetings from their transcripts. Answer concisely, cite [mm:ss] timestamps and speakers when relevant. If the transcript does not contain the answer, say so.'
   if (!m) return base
-  return `${base}\n\nFundur: ${m.title} (${new Date(m.createdAt).toLocaleString('is-IS')})\n${m.summary ? 'Samantekt:\n' + m.summary.markdown + '\n\n' : ''}Uppskrift:\n${transcriptForPrompt(m)}`
+  return `${base}\n\nFundur: ${m.title} (${dateTimeIs(new Date(m.createdAt))})\n${m.summary ? 'Samantekt:\n' + m.summary.markdown + '\n\n' : ''}Uppskrift:\n${transcriptForPrompt(m)}`
 }

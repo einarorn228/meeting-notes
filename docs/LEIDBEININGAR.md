@@ -34,6 +34,8 @@ Vistaðu skrána í möppuna *Downloads* (Niðurhal). Skráin er um 200 MB.
 Þegar forritið opnast í fyrsta sinn leiðir það þig í gegnum sjö einföld skref. Smelltu á **Byrjum →** og svo **Áfram →**
 milli skrefa.
 
+![Uppsetningarhjálp – skref 1](img/01-velkomin.png)
+
 | Skref | Hvað á að gera |
 |---|---|
 | **1. Velkomin** | Tungumál viðmóts: *Íslenska*. Smelltu á **Byrjum**. |
@@ -44,10 +46,22 @@ milli skrefa.
 | **6. Gervigreind** | Þetta skref er valfrjálst. Ef þú fékkst sendan **lykil** (langur texti sem byrjar á `sk-ant-`), veldu *Anthropic (Claude)* og límdu lykilinn í reitinn. Þá fást sjálfvirkar fundargerðir. Annars smelltu á **Sleppa**. |
 | **7. Tilbúið** | Smelltu á **Opna Fundarritara**. |
 
+![Skref 2 – hljóðnemi](img/02-hljodnemi.png)
+
+![Skref 4 – prófun](img/04-profun.png)
+
+![Skref 5 – talgreining](img/05-talgreining.png)
+
+![Skref 6 – gervigreind](img/06-gervigreind.png)
+
+![Forsíðan](img/08-forsida.png)
+
 **Mikilvægt:** Í fyrsta skipti þarf forritið að sækja íslenska talgreiningarlíkanið (um 3 GB). Það gerist
 sjálfkrafa í bakgrunni og getur tekið **5–20 mínútur** eftir nettengingu. Neðst til vinstri í glugganum sérðu
 stöðuna: *„Sæki líkan…“* → *„Hleð líkani…“* → **„Tilbúið“**. Þú getur skoðað framvinduna nánar undir
 **Stillingar → Talgreining**. Bíddu eftir **„Tilbúið“** áður en þú tekur upp fyrsta fundinn.
+
+![Stillingar → Talgreining sýnir stöðu líkansins](img/11-stillingar-talgreining.png)
 
 ## 4. Að taka upp fund
 
@@ -63,6 +77,8 @@ stöðuna: *„Sæki líkan…“* → *„Hleð líkani…“* → **„Tilbúi
    - **Afrita tilkynningu**: afritar setningu sem þú getur límt í spjall fundarins til að láta aðra vita að fundurinn sé skrifaður niður. Það er kurteisi (og skylda samkvæmt persónuverndarreglum) að segja fólki frá þessu.
 4. Þú mátt lágmarka gluggann eða loka honum – upptakan heldur áfram. Forritið er þá í **kerfisbakkanum** (litla táknið neðst til hægri á skjánum, við klukkuna). Þar geturðu líka stöðvað upptökuna.
 5. Þegar fundinum lýkur: smelltu á rauða hnappinn **Stöðva upptöku**.
+
+![Upptökuglugginn](img/09-upptaka.png)
 
 ## 5. Eftir fundinn
 
@@ -83,11 +99,15 @@ Flipar fundarins:
 
 Á forsíðunni (**Fundir**) sérðu alla fundi og getur leitað í þeim öllum í einu.
 
+![Fundur eftir upptöku](img/10-fundur.png)
+
 ## 6. Góð ráð fyrir bestu nákvæmni
 
 - **Notaðu heyrnartól** (helst með snúru). Þá blandast rödd hinna ekki inn í hljóðnemann þinn og allir fá rétt merki.
 - **Bluetooth-heyrnartól** geta valdið því að „Kerfishljóð“-mælirinn stendur kyrr. Ef það gerist: veldu heyrnartólin sem hljóðúttak í Windows *áður* en fundurinn hefst, eða notaðu hátalara tölvunnar.
 - Skráðu **nöfn fólks og fagorð** undir **Stillingar → Orðaforði** (eitt í hverja línu). Þá eru þau skrifuð rétt.
+
+![Orðaforði](img/13-stillingar-ordafordi.png)
 - Fyrsta skiptið sem talgreiningin fer í gang eftir að tölvan er ræst tekur hún um hálfa mínútu að hlaða líkaninu. Ræstu Fundarritara nokkrum mínútum fyrir fund.
 - Á hægum tölvum getur uppskriftin dregist aðeins aftur úr talinu. Það er í lagi – allt kemur að lokum, og allt hljóðið er geymt.
 

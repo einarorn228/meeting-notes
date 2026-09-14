@@ -1,4 +1,5 @@
 /** Formatting helpers shared across pages. All locale-aware functions take the BCP-47 locale from useI18n(). */
+import { formatDateForLocale, formatDateTimeForLocale, timeIs } from '@shared/dates'
 
 export function pad2(n: number): string {
   return n < 10 ? `0${n}` : String(n)
@@ -27,19 +28,21 @@ export function formatDuration(seconds: number, lang: 'is' | 'en'): string {
 export function formatTime(iso: string, locale: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
+  if (locale.startsWith('is')) return timeIs(d)
   return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
 }
 
 export function formatDate(iso: string, locale: string, opts?: Intl.DateTimeFormatOptions): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
+  if (locale.startsWith('is')) return formatDateForLocale(d, locale, !opts || !!opts.weekday)
   return d.toLocaleDateString(locale, opts ?? { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 }
 
 export function formatDateTime(iso: string, locale: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleString(locale, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+  return formatDateTimeForLocale(d, locale)
 }
 
 /** YYYY-MM-DD key of a date in local time, used to group meetings by day. */

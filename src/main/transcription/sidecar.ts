@@ -228,7 +228,14 @@ export class SidecarManager extends EventEmitter {
     }
     if (ev.type === 'status') {
       const st = ev.state as SidecarStatus['state']
-      this.setStatus({ state: st, message: (ev.message as string) ?? this.status.message, progress: ev.progress as number | undefined, modelId: (ev.model_id as string) ?? this.status.modelId, device: (ev.device as string) ?? this.status.device })
+      const friendly: Partial<Record<SidecarStatus['state'], string>> = {
+        'loading-model': 'Hleð talgreiningarlíkani (tekur um hálfa mínútu)…',
+        'downloading-model': 'Sæki talgreiningarlíkan…',
+        ready: 'Talgreining tilbúin',
+        idle: 'Talgreiningarþjónusta í gangi'
+      }
+      const message = st === 'error' ? String(ev.message ?? 'Villa') : (friendly[st] ?? (ev.message as string) ?? this.status.message)
+      this.setStatus({ state: st, message, progress: ev.progress as number | undefined, modelId: (ev.model_id as string) ?? this.status.modelId, device: (ev.device as string) ?? this.status.device })
     }
     if (ev.type === 'progress') {
       this.setStatus({ state: 'downloading-model', progress: ev.progress as number, modelId: ev.model_id as string, message: `Sæki líkan ${(ev.downloaded_mb as number)?.toFixed?.(0) ?? ''} / ${(ev.total_mb as number)?.toFixed?.(0) ?? ''} MB` })

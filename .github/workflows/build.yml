@@ -6,6 +6,11 @@ on:
     tags: ['v*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      release:
+        description: 'Publish a GitHub Release with the installers'
+        type: boolean
+        default: false
 
 jobs:
   test:
@@ -71,7 +76,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-        run: npx electron-builder --${{ matrix.target }} --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
+        run: npx electron-builder --${{ matrix.target }} --publish ${{ (startsWith(github.ref, 'refs/tags/v') || github.event.inputs.release == 'true') && 'always' || 'never' }}
       - uses: actions/upload-artifact@v4
         with:
           name: fundarritari-${{ matrix.target }}

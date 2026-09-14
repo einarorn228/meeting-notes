@@ -1,3 +1,4 @@
+import { dateIs, dateTimeIs } from '../../shared/dates'
 import type { ActionItem, ChatMessage, Meeting, Summary } from '../../shared/types'
 import { getSettings } from '../settings'
 import { allMeetings, loadMeeting, saveMeeting, transcriptText } from '../store'
@@ -136,7 +137,7 @@ export async function chatWithAllMeetings(message: string): Promise<string> {
   let corpus = ''
   for (const m of meetings) {
     const body = m.summary?.markdown ?? transcriptText(m.segments).slice(0, 4000)
-    const block = `### ${m.title} (${new Date(m.createdAt).toLocaleDateString('is-IS')}, id ${m.id})\n${body}\n\n`
+    const block = `### ${m.title} (${dateIs(new Date(m.createdAt))}, id ${m.id})\n${body}\n\n`
     if (corpus.length + block.length > 300000) break
     corpus += block
   }

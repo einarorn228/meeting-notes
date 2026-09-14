@@ -12,6 +12,7 @@ import { createEngine } from './transcription'
 import type { EngineSegment, TranscriptionEngine } from './transcription/types'
 import { toSegment } from './transcription/types'
 import { StereoWavWriter } from './wav'
+import { shortDateTimeIs } from '../shared/dates'
 
 export interface SessionEvents {
   state: (s: RecordingState) => void
@@ -227,7 +228,7 @@ export class RecordingSession extends EventEmitter {
 
 export function defaultTitle(d: Date, app?: string): string {
   const appName = app ? ` (${appLabel(app)})` : ''
-  return `Fundur ${d.toLocaleDateString('is-IS')} ${d.toLocaleTimeString('is-IS', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}${appName}`
+  return `Fundur ${shortDateTimeIs(d)}${appName}`
 }
 
 export function appLabel(app: string): string {
