@@ -1,0 +1,178 @@
+/**
+ * Local-first meeting storage: one folder per meeting in <userData>/data/meetings/<id>/ containing
+ * meeting.json (everything except audio) and audio.wav (stereo: left = mic, right = system).
+ */
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, renameSync, statSync } from 'node:fs'
+import { join } from 'node:path'
+import { randomUUID } from 'node:crypto'
+import { dataDir } from './settings'
+import type { Meeting, MeetingListItem, SearchResult, Segment } from '../shared/types'
+
+export function meetingsDir(): string {
+  const d = join(dataDir(), 'meetings')
+  if (!existsSync(d)) mkdirSync(d, { recursive: true })
+  return d
+}
+
+export function meetingDir(id: string): string {
+  const d = join(meetingsDir(), id)
+  if (!existsSync(d)) mkdirSync(d, { recursive: true })
+  return d
+}
+
+export function newId(): string {
+  return `${new Date().toISOString().slice(0, 10)}-${randomUUID().slice(0, 8)}`
+}
+
+const cache = new Map<string, Meeting>()
+
+export function saveMeeting(m: Meeting): Meeting {
+  cache.set(m.id, m)
+  const p = join(meetingDir(m.id), 'meeting.json')
+  const tmp = p + '.tmp'
+  writeFileSync(tmp, JSON.stringify(m, null, 2), 'utf8')
+  renameSync(tmp, p)
+  return m
+}
+
+export function loadMeeting(id: string): Meeting | null {
+  const c = cache.get(id)
+  if (c) return c
+  const p = join(meetingsDir(), id, 'meeting.json')
+  if (!existsSync(p)) return null
+  try {
+    const m = JSON.parse(readFileSync(p, 'utf8')) as Meeting
+    m.segments ??= []
+    m.highlights ??= []
+    m.chat ??= []
+    m.tags ??= []
+    m.participants ??= []
+    m.speakerNames ??= {}
+    m.notes ??= ''
+    cache.set(id, m)
+    return m
+  } catch {
+    return null
+  }
+}
+
+export function updateMeeting(id: string, patch: Partial<Meeting>): Meeting {
+  const m = loadMeeting(id)
+  if (!m) throw new Error(`Meeting ${id} not found`)
+  const next = { ...m, ...patch, id }
+  return saveMeeting(next)
+}
+
+export function deleteMeeting(id: string): void {
+  cache.delete(id)
+  const d = join(meetingsDir(), id)
+  if (existsSync(d)) rmSync(d, { recursive: true, force: true })
+}
+
+export function audioPath(id: string): string {
+  return join(meetingDir(id), 'audio.wav')
+}
+
+export function deleteAudio(id: string): void {
+  const p = audioPath(id)
+  if (existsSync(p)) rmSync(p)
+  const m = loadMeeting(id)
+  if (m) saveMeeting({ ...m, audioFile: undefined })
+}
+
+export function listMeetings(): MeetingListItem[] {
+  const out: MeetingListItem[] = []
+  for (const id of readdirSync(meetingsDir())) {
+    const m = loadMeeting(id)
+    if (!m) continue
+    out.push({
+      id: m.id,
+      title: m.title,
+      createdAt: m.createdAt,
+      durationSec: m.durationSec,
+      language: m.language,
+      status: m.status,
+      app: m.app,
+      tags: m.tags,
+      hasSummary: !!m.summary,
+      preview: (m.summary?.markdown || transcriptText(m.segments)).replace(/\s+/g, ' ').slice(0, 160)
+    })
+  }
+  return out.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+}
+
+export function allMeetings(): Meeting[] {
+  return listMeetings()
+    .map((x) => loadMeeting(x.id))
+    .filter((m): m is Meeting => !!m)
+}
+
+export function transcriptText(segments: Segment[]): string {
+  return segments
+    .filter((s) => !s.partial)
+    .map((s) => s.text)
+    .join(' ')
+}
+
+export function speakerLabel(m: Meeting, s: Segment): string {
+  return m.speakerNames[s.speaker] || s.speaker
+}
+
+export function formatTime(sec: number): string {
+  const s = Math.max(0, Math.floor(sec))
+  const h = Math.floor(s / 3600)
+  const mm = Math.floor((s % 3600) / 60)
+  const ss = s % 60
+  const p = (n: number): string => n.toString().padStart(2, '0')
+  return h > 0 ? `${h}:${p(mm)}:${p(ss)}` : `${p(mm)}:${p(ss)}`
+}
+
+export function searchMeetings(query: string): SearchResult[] {
+  const q = query.trim().toLowerCase()
+  if (!q) return []
+  const terms = q.split(/\s+/)
+  const results: SearchResult[] = []
+  for (const m of allMeetings()) {
+    const haystacks: { text: string; segmentId?: string; time?: number }[] = [
+      { text: m.title },
+      { text: m.notes },
+      { text: m.summary?.markdown ?? '' },
+      ...m.segments.map((s) => ({ text: s.text, segmentId: s.id, time: s.start }))
+    ]
+    let found = 0
+    for (const h of haystacks) {
+      const lower = h.text.toLowerCase()
+      if (terms.every((t) => lower.includes(t))) {
+        const idx = lower.indexOf(terms[0])
+        const from = Math.max(0, idx - 60)
+        results.push({
+          meetingId: m.id,
+          title: m.title,
+          createdAt: m.createdAt,
+          snippet: (from > 0 ? '…' : '') + h.text.slice(from, idx + 100) + (idx + 100 < h.text.length ? '…' : ''),
+          segmentId: h.segmentId,
+          time: h.time
+        })
+        if (++found >= 3) break
+      }
+    }
+  }
+  return results.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)).slice(0, 100)
+}
+
+export function storageStats(): { meetings: number; bytes: number } {
+  let bytes = 0
+  let meetings = 0
+  for (const id of readdirSync(meetingsDir())) {
+    meetings++
+    const d = join(meetingsDir(), id)
+    for (const f of readdirSync(d)) {
+      try {
+        bytes += statSync(join(d, f)).size
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return { meetings, bytes }
+}

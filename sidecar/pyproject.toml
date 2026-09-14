@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fundarritari-stt"
+version = "0.1.0"
+description = "Speech-to-text sidecar for Fundarritari (faster-whisper over JSON-lines stdio)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+  "faster-whisper>=1.2",
+  "huggingface_hub>=0.23",
+  "numpy>=1.24",
+  "soundfile>=0.12",
+  "av>=11",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "jiwer>=3"]
+build = ["pyinstaller>=6"]
+
+[project.scripts]
+fundarritari-stt = "fundarritari_stt.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["fundarritari_stt*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["slow: loads the real Whisper model (minutes on CPU)"]
+addopts = "-ra"
