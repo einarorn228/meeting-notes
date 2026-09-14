@@ -51,3 +51,13 @@ punctuation and unreliable in-segment timestamps, hence `without_timestamps=True
 
 Hallucination guards: drop segments whose `no_speech_prob` > 0.85 and `avg_logprob` < -1.0, drop segments
 consisting of the same token repeated > 4 times, drop empty text.
+
+## Speaker diarization (added)
+
+| command | fields | reply |
+|---|---|---|
+| `diarize_file` | `request_id`, `path` (WAV/any audio), `channel` (int index for multi-channel files, or null to mix down), `models_dir`, `threshold` (float, default 0.55; larger = fewer speakers), `num_speakers` (int, optional, -1 = auto) | `diarized` with `request_id`, `segments` (list of `{start, end, speaker}` with 0-based integer speaker ids), `num_speakers` |
+
+Uses sherpa-onnx offline speaker diarization (pyannote segmentation 3.0 + 3D-Speaker CAM++ VoxCeleb embeddings).
+The two ONNX models (~36 MB) are downloaded from Hugging Face into `<models_dir>/diarization/` on first use
+(`progress` events, `model_id` = `diarization`). If sherpa-onnx is not installed an `error` event is returned.

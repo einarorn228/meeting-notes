@@ -3,3 +3,4 @@ huggingface_hub>=0.23
 numpy>=1.24
 soundfile>=0.12
 av>=11
+sherpa-onnx>=1.12

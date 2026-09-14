@@ -14,6 +14,7 @@ from . import __version__, models
 from .engine import WhisperEngine, cuda_available
 from .events import EventSink
 from .filetranscribe import transcribe_file
+from .diarize import diarize_file
 from .streaming import Job, StreamingOptions, StreamingSession, TranscriptionWorker
 
 log = logging.getLogger("fundarritari_stt.server")
@@ -63,6 +64,7 @@ class Server:
             "pause": self.cmd_pause,
             "stop": self.cmd_stop,
             "transcribe_file": self.cmd_transcribe_file,
+            "diarize_file": self.cmd_diarize_file,
             "shutdown": self.cmd_shutdown,
         }
 
@@ -311,6 +313,31 @@ class Server:
             )
 
         self.worker.submit(Job(run=run, description=f"transcribe_file {request_id}", request_id=request_id))
+
+    def cmd_diarize_file(self, cmd: Dict[str, Any]) -> None:
+        request_id = _require(cmd, "request_id")
+        path = _require(cmd, "path")
+        models_dir = _require(cmd, "models_dir")
+        if not os.path.isfile(path):
+            raise CommandError(f"file not found: {path}")
+        channel = cmd.get("channel")
+        if channel is not None and not isinstance(channel, int):
+            raise CommandError("'channel' must be an integer index or null")
+        threshold = float(cmd.get("threshold") or 0.55)
+        num_speakers = int(cmd.get("num_speakers") or -1)
+
+        def run() -> None:
+            diarize_file(
+                request_id,
+                path,
+                models_dir=models_dir,
+                emit=self._emit,
+                channel=channel,
+                threshold=threshold,
+                num_speakers=num_speakers,
+            )
+
+        threading.Thread(target=run, name=f"diarize-{request_id}", daemon=True).start()
 
     def cmd_shutdown(self, cmd: Dict[str, Any]) -> None:
         log.info("shutdown requested")

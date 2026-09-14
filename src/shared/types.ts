@@ -72,6 +72,8 @@ export interface Settings {
     computeType: 'auto' | 'int8' | 'float16' | 'float32'
     /** Emit partial (in-progress) results while someone is still speaking. Costs CPU. */
     partials: boolean
+    /** Speaker diarization of the system channel after the recording (sherpa-onnx, offline). */
+    diarize: boolean
     /** Path to python executable to use for the sidecar (optional, auto-detected otherwise). */
     pythonPath?: string
     threads?: number
@@ -275,7 +277,7 @@ export const DEFAULT_SETTINGS: Settings = {
   uiLanguage: 'is',
   language: 'is',
   engine: 'local',
-  local: { modelId: 'aalto-large-v3-is', device: 'auto', computeType: 'auto', partials: false },
+  local: { modelId: 'aalto-large-v3-is', device: 'auto', computeType: 'auto', partials: false, diarize: true },
   azure: { key: '', region: 'northeurope', diarization: true },
   elevenlabs: { apiKey: '', diarize: true },
   openaiStt: { apiKey: '', model: 'gpt-4o-transcribe' },

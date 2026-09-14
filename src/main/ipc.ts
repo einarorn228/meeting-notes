@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url'
 import type { ChannelId, ExportRequest, MainEventName, MainEvents, Meeting, RecordingState, Settings } from '../shared/types'
 import { LOCAL_MODELS } from '../shared/types'
 import { chatWithAllMeetings, chatWithMeeting, punctuateMeeting, summarizeMeeting } from './ai/notes'
+import { diarizeMeeting } from './diarize'
 import { testLlm } from './ai/llm'
 import { TEMPLATES } from './ai/templates'
 import { writeExport, toHtml } from './export'
@@ -72,6 +73,15 @@ async function postProcess(meetingId: string): Promise<void> {
   if (!m || m.segments.length === 0) return
   const progress = (stage: string, progress?: number): void => broadcast('ai:progress', { meetingId, stage, progress })
   try {
+    // 1) Speaker diarization of the remote-participant channel (local sidecar), so each person gets a label.
+    if (m.engine !== 'azure' && st.local.diarize && (await sidecar.isInstalled().catch(() => false))) {
+      try {
+        await diarizeMeeting(meetingId, progress)
+        broadcast('meeting:updated', { meetingId })
+      } catch (e) {
+        broadcast('transcript:error', { meetingId, message: 'Aðgreining ræðumanna mistókst: ' + (e instanceof Error ? e.message : String(e)) })
+      }
+    }
     if (st.llm.provider !== 'none') {
       const model = LOCAL_MODELS.find((x) => x.id === m.modelId)
       const needsPunct = m.engine === 'local' && model && !model.punctuated

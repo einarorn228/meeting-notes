@@ -1,0 +1,84 @@
+name: Build
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Lint, typecheck, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Sidecar unit tests
+        working-directory: sidecar
+        run: |
+          python -m pip install -r requirements.txt pytest jiwer
+          python -m pytest -q -m "not slow"
+
+  build:
+    name: Build installers (${{ matrix.os }})
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: win
+            sidecar_dir: win
+          - os: macos-latest
+            target: mac
+            sidecar_dir: mac
+          - os: ubuntu-latest
+            target: linux
+            sidecar_dir: linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - name: Build standalone sidecar (PyInstaller)
+        shell: bash
+        working-directory: sidecar
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller
+          pyinstaller --noconfirm fundarritari-stt.spec
+          mkdir -p ../resources/sidecar-bin/${{ matrix.sidecar_dir }}
+          cp -R dist/fundarritari-stt ../resources/sidecar-bin/${{ matrix.sidecar_dir }}/
+      - name: Build app
+        run: npm run build
+      - name: Package (${{ matrix.target }})
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npx electron-builder --${{ matrix.target }} --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fundarritari-${{ matrix.target }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.zip
+            release/*.AppImage
+            release/*.deb
+          if-no-files-found: warn

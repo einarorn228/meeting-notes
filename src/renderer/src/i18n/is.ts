@@ -430,6 +430,18 @@ export const is = {
   'app.discord': 'Discord',
   'app.facetime': 'FaceTime',
   'app.import': 'Innflutt skrá',
+  // ---- diarization / speakers ----
+  'settings.engine.diarize': 'Aðgreina ræðumenn í kerfishljóði',
+  'settings.engine.diarizeHint': 'Eftir upptöku greinir Fundarritari raddir hinna þátttakendanna og merkir hvern þeirra sérstaklega (Þátttakandi 1, 2, 3 …). Nöfnin má svo laga með því að smella á ræðumann í uppskriftinni. Þarf ~40 MB aukaniðurhal.',
+  'summary.progress.diarize': 'Greini ræðumenn…',
+  'speaker.participant': 'Þátttakandi {n}',
+  'onb.engine.localNote': 'Sjálfgefið líkan: {model} ({gb} GB). Það er sótt sjálfkrafa við fyrstu upptöku.',
+  'onb.done.localNote': 'Fyrsta upptakan getur tekið nokkrar mínútur að hefjast á meðan Python-þjónustan og íslenska líkanið eru sett upp. Þú getur fylgst með í Stillingar → Talgreining.',
+  'settings.engine.installHint': 'Staðbundin talgreining þarf Python 3.10 eða nýrra á tölvunni (python.org). Fundarritari býr sjálfur til einangrað umhverfi og sækir faster-whisper.',
+  'settings.engine.threads': 'Fjöldi örgjörvaþráða (0 = sjálfvirkt)',
+  'settings.engine.compute': 'Reikninákvæmni',
+  'settings.engine.modelsDir': 'Líkön eru geymd í gagnamöppunni undir „models“.',
+
   'app.other': 'Annað'
 }
 

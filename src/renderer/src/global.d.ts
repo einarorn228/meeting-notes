@@ -1,4 +1,4 @@
-import type { FundarritariApi } from './index'
+import type { FundarritariApi } from '../../preload/index'
 
 declare global {
   interface Window {

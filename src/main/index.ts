@@ -9,6 +9,7 @@ import { CalendarService } from './detect/calendar'
 import { sidecar } from './transcription/sidecar'
 import { meetingsDir } from './store'
 
+const here = typeof __dirname !== 'undefined' ? __dirname : (import.meta.dirname as string)
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let quitting = false
@@ -26,7 +27,7 @@ app.setAppUserModelId('is.fundarritari.app')
 if (process.platform === 'linux') app.commandLine.appendSwitch('enable-features', 'PulseaudioLoopbackForScreenShare')
 
 function iconPath(): string {
-  const p = join(__dirname, '../../resources/icon.png')
+  const p = join(here, '../../resources/icon.png')
   return existsSync(p) ? p : join(process.resourcesPath ?? '', 'icon.png')
 }
 
@@ -42,14 +43,30 @@ function createWindow(): BrowserWindow {
     autoHideMenuBar: true,
     backgroundColor: '#f6f7fb',
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: join(here, '../preload/index.mjs'),
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
       backgroundThrottling: false
     }
   })
-  win.on('ready-to-show', () => win.show())
+  win.on('ready-to-show', () => {
+    win.show()
+    if (process.env.FUNDARRITARI_SMOKE) {
+      setTimeout(async () => {
+        try {
+          const img = await win.webContents.capturePage()
+          const { writeFileSync } = await import('node:fs')
+          writeFileSync(process.env.FUNDARRITARI_SMOKE!, img.toPNG())
+          console.log('smoke screenshot written')
+        } catch (e) {
+          console.error('smoke failed', e)
+        }
+        quitting = true
+        app.exit(0)
+      }, 6000)
+    }
+  })
   win.on('close', (e) => {
     // Keep running in the tray (the renderer owns the audio capture pipeline).
     if (!quitting) {
@@ -63,7 +80,7 @@ function createWindow(): BrowserWindow {
     return { action: 'deny' }
   })
   if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL)
-  else void win.loadFile(join(__dirname, '../renderer/index.html'))
+  else void win.loadFile(join(here, '../renderer/index.html'))
   return win
 }
 

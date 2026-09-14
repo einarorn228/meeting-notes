@@ -423,5 +423,17 @@ export const en: Record<TranslationKey, string> = {
   'app.discord': 'Discord',
   'app.facetime': 'FaceTime',
   'app.import': 'Imported file',
+  // ---- diarization / speakers ----
+  'settings.engine.diarize': 'Separate speakers in system audio',
+  'settings.engine.diarizeHint': 'After a recording, Fundarritari analyses the other participants\' voices and labels each of them (Participant 1, 2, 3 …). Click a speaker in the transcript to give them a name. Needs a ~40 MB extra download.',
+  'summary.progress.diarize': 'Identifying speakers…',
+  'speaker.participant': 'Participant {n}',
+  'onb.engine.localNote': 'Default model: {model} ({gb} GB). It is downloaded automatically before the first recording.',
+  'onb.done.localNote': 'The first recording can take a few minutes to start while the Python service and the Icelandic model are installed. Follow the progress under Settings → Transcription.',
+  'settings.engine.installHint': 'Local transcription needs Python 3.10 or newer on this computer (python.org). Fundarritari creates its own isolated environment and installs faster-whisper.',
+  'settings.engine.threads': 'CPU threads (0 = automatic)',
+  'settings.engine.compute': 'Compute precision',
+  'settings.engine.modelsDir': 'Models are stored in the data folder under "models".',
+
   'app.other': 'Other'
 }

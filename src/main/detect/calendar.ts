@@ -51,7 +51,7 @@ export function parseIcs(ics: string): CalendarEvent[] {
       if (start && end && !cur.RRULE) {
         const desc = unescape(cur.DESCRIPTION?.value ?? '')
         const loc = unescape(cur.LOCATION?.value ?? '')
-        const urlMatch = (desc + ' ' + loc + ' ' + (cur.URL?.value ?? '') + ' ' + (cur['X-MICROSOFT-SKYPETEAMSMEETINGURL']?.value ?? '')).match(/https?:\/\/[^\s<>"']+(teams\.microsoft\.com|teams\.live\.com|zoom\.us|meet\.google\.com|webex\.com)[^\s<>"']*/i)
+        const urlMatch = (desc + ' ' + loc + ' ' + (cur.URL?.value ?? '') + ' ' + (cur['X-MICROSOFT-SKYPETEAMSMEETINGURL']?.value ?? '')).match(/https?:\/\/[^\s<>"']*(teams\.microsoft\.com|teams\.live\.com|zoom\.us|meet\.google\.com|webex\.com)[^\s<>"']*/i)
         events.push({
           id: cur.UID?.value ?? `${start.toISOString()}-${cur.SUMMARY?.value ?? ''}`,
           title: unescape(cur.SUMMARY?.value ?? 'Fundur'),
