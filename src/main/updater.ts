@@ -119,5 +119,7 @@ export async function checkForUpdates(fromUser = true): Promise<UpdateStatus> {
 export function installUpdate(): void {
   if (status.state !== 'ready') throw new Error('Engin uppfærsla er tilbúin til uppsetningar')
   if (installGuard()) throw new Error('Upptaka er í gangi. Stöðvaðu upptökuna fyrst og reyndu svo aftur.')
-  setImmediate(() => autoUpdater.quitAndInstall(false, true))
+  // Silent: the user already consented by pressing "restart now", and putting the full NSIS wizard in front
+  // of them asks the same question again in English. The second argument relaunches the app afterwards.
+  setImmediate(() => autoUpdater.quitAndInstall(true, true))
 }

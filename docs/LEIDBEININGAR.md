@@ -135,7 +135,8 @@ Flipar fundarins:
 
 - Forritið athugar sjálft hvort ný útgáfa sé komin (við ræsingu og einu sinni á dag) og **sækir hana í bakgrunni**.
 - Þegar hún er tilbúin birtist blá lína efst í glugganum: *„Ný útgáfa er tilbúin“* með takkanum **Endurræsa núna**.
-  Smelltu á hann þegar þér hentar – uppfærslan tekur nokkrar sekúndur og öll gögnin þín haldast óbreytt.
+  Smelltu á hann þegar þér hentar. Forritið lokast, uppfærir sig þegjandi á nokkrum sekúndum og opnast aftur
+  sjálft – þú þarft ekki að svara neinum uppsetningarglugga. Öll gögnin þín haldast óbreytt.
 - Þú getur líka leitað sjálf(ur): **Stillingar → Almennt → Uppfærslur → Leita að uppfærslum**.
 - Ef upptaka er í gangi neitar forritið að endurræsa sig. Stöðvaðu upptökuna fyrst.
 
