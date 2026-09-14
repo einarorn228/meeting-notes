@@ -4,7 +4,10 @@
   "version": "0.1.0",
   "description": "Icelandic-first meeting transcription and notes for Microsoft Teams, Zoom, Google Meet and any other meeting app.",
   "main": "./out/main/index.js",
-  "author": "Einar Örn",
+  "author": {
+    "name": "Einar Örn",
+    "email": "einarorn864@gmail.com"
+  },
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -29,6 +32,7 @@
     "electron": "^44.3.0",
     "electron-builder": "^26.0.0",
     "electron-vite": "^5.0.0",
+    "playwright": "^1.63.0",
     "typescript": "^5.7.0",
     "vite": "^7.0.0",
     "vitest": "^3.0.0"

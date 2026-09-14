@@ -65,6 +65,9 @@ linux:
     - AppImage
     - deb
   category: Office
+  maintainer: Einar Örn <einarorn864@gmail.com>
+  desktopName: fundarritari.desktop
+  synopsis: Icelandic meeting transcription
   icon: build/icon.png
   artifactName: ${productName}-${version}-linux-${arch}.${ext}
 publish:
