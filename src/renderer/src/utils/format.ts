@@ -27,7 +27,7 @@ export function formatDuration(seconds: number, lang: 'is' | 'en'): string {
 export function formatTime(iso: string, locale: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
 }
 
 export function formatDate(iso: string, locale: string, opts?: Intl.DateTimeFormatOptions): string {
@@ -39,7 +39,7 @@ export function formatDate(iso: string, locale: string, opts?: Intl.DateTimeForm
 export function formatDateTime(iso: string, locale: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleString(locale, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleString(locale, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
 }
 
 /** YYYY-MM-DD key of a date in local time, used to group meetings by day. */

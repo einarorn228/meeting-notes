@@ -227,7 +227,7 @@ export class RecordingSession extends EventEmitter {
 
 export function defaultTitle(d: Date, app?: string): string {
   const appName = app ? ` (${appLabel(app)})` : ''
-  return `Fundur ${d.toLocaleDateString('is-IS')} ${d.toLocaleTimeString('is-IS', { hour: '2-digit', minute: '2-digit' })}${appName}`
+  return `Fundur ${d.toLocaleDateString('is-IS')} ${d.toLocaleTimeString('is-IS', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}${appName}`
 }
 
 export function appLabel(app: string): string {
