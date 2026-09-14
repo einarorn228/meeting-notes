@@ -14,22 +14,72 @@ export interface LlmResult {
   model: string
 }
 
-export async function complete(system: string, messages: LlmMessage[], opts: { maxTokens?: number; temperature?: number } = {}): Promise<LlmResult> {
+export type Effort = 'low' | 'medium' | 'high'
+
+/**
+ * Current Claude models removed the sampling parameters (temperature / top_p / top_k): sending one returns
+ * `400 "temperature is deprecated for this model"`. Older models still accept them.
+ */
+export function anthropicSupportsSampling(model: string): boolean {
+  return !/^claude-(fable-5|mythos-5|opus-5|opus-4-8|opus-4-7|sonnet-5)/.test(model)
+}
+
+/** Models that accept `output_config.effort`. Haiku 4.5 and Sonnet 4.5 reject it. */
+export function anthropicSupportsEffort(model: string): boolean {
+  return /^claude-(fable-5|mythos-5|opus-5|opus-4-8|opus-4-7|opus-4-6|opus-4-5|sonnet-5|sonnet-4-6)/.test(model)
+}
+
+/**
+ * Builds the Anthropic request body. Kept pure so the capability rules above are unit-testable without
+ * network access — getting them wrong breaks every AI feature in the app with an opaque 400.
+ */
+export function anthropicRequest(args: {
+  model: string
+  system: string
+  messages: LlmMessage[]
+  maxTokens: number
+  temperature: number
+  effort?: Effort
+}): Anthropic.MessageCreateParamsNonStreaming {
+  const body: Record<string, unknown> = {
+    model: args.model,
+    max_tokens: args.maxTokens,
+    // The system prompt carries the transcript for chat, so cache it: follow-up turns are then much cheaper.
+    system: [{ type: 'text', text: args.system, cache_control: { type: 'ephemeral' } }],
+    messages: args.messages.map((m) => ({ role: m.role, content: m.content }))
+  }
+  if (anthropicSupportsSampling(args.model)) body.temperature = args.temperature
+  if (args.effort && anthropicSupportsEffort(args.model)) body.output_config = { effort: args.effort }
+  return body as unknown as Anthropic.MessageCreateParamsNonStreaming
+}
+
+/** Turns an Anthropic refusal (HTTP 200, stop_reason "refusal") into a message the user can act on. */
+function refusalMessage(category?: string | null): string {
+  return `Claude hafnaði beiðninni${category ? ` (flokkur: ${category})` : ''}. Þetta gerist stundum ef efni fundarins ræsir öryggissíu. Prófaðu annað sniðmát, styttri kafla, eða aðra þjónustu í Stillingar → Gervigreind.`
+}
+
+export async function complete(
+  system: string,
+  messages: LlmMessage[],
+  opts: { maxTokens?: number; temperature?: number; effort?: Effort } = {}
+): Promise<LlmResult> {
   const s = getSettings().llm
-  const maxTokens = opts.maxTokens ?? 4000
+  const maxTokens = opts.maxTokens ?? 16000
   const temperature = opts.temperature ?? 0.2
   switch (s.provider) {
     case 'anthropic': {
       if (!s.anthropicApiKey) throw new Error('Anthropic API lykil vantar (Stillingar → Gervigreind)')
+      const model = s.anthropicModel || 'claude-opus-5'
       const client = new Anthropic({ apiKey: s.anthropicApiKey })
-      const res = await client.messages.create({
-        model: s.anthropicModel || 'claude-opus-5',
-        max_tokens: maxTokens,
-        temperature,
-        system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-        messages: messages.map((m) => ({ role: m.role, content: m.content }))
-      })
+      const res = await client.messages.create(anthropicRequest({ model, system, messages, maxTokens, temperature, effort: opts.effort }))
+      if (res.stop_reason === 'refusal') {
+        const details = (res as { stop_details?: { category?: string | null } }).stop_details
+        throw new Error(refusalMessage(details?.category))
+      }
       const text = res.content.map((c) => (c.type === 'text' ? c.text : '')).join('')
+      if (!text.trim() && res.stop_reason === 'max_tokens') {
+        throw new Error('Svarið rúmaðist ekki innan token-marka. Prófaðu styttri fund eða annað sniðmát.')
+      }
       return { text, provider: 'anthropic', model: res.model }
     }
     case 'openai': {
@@ -63,7 +113,9 @@ export async function complete(system: string, messages: LlmMessage[], opts: { m
 
 export async function testLlm(): Promise<{ ok: boolean; message: string }> {
   try {
-    const r = await complete('Svaraðu með einu orði.', [{ role: 'user', content: 'Segðu „Halló“ á íslensku.' }], { maxTokens: 20, temperature: 0 })
+    // Budget has to leave room for thinking tokens: current Claude models think by default, and a tiny
+    // max_tokens would be spent before any visible text is produced.
+    const r = await complete('Svaraðu með einu orði.', [{ role: 'user', content: 'Segðu „Halló“ á íslensku.' }], { maxTokens: 2000, temperature: 0, effort: 'low' })
     return { ok: true, message: `Tenging virkar (${r.provider} / ${r.model}): ${r.text.trim().slice(0, 40)}` }
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : String(e) }

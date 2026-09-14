@@ -11,19 +11,20 @@ og tilbúna fundargerð með samantekt, ákvörðunum og verkefnalista.
 
 ## 1. Sækja forritið
 
-Þú færð sent annaðhvort:
+Opnaðu þennan hlekk í vafra (hann sækir alltaf nýjustu útgáfuna):
 
-- **Skrá** sem heitir `Fundarritari-0.1.0-win-x64.exe` (t.d. í tölvupósti, Google Drive eða WeTransfer), **eða**
-- **Tengil** á niðurhalssíðu (GitHub „Releases“). Þar smellirðu á skrána sem endar á `win-x64.exe`.
+**https://github.com/einarorn228/meeting-notes/releases/latest/download/Fundarritari-Setup-win-x64.exe**
 
-Vistaðu skrána í möppuna *Downloads* (Niðurhal). Skráin er um 200 MB.
+Ef þú fékkst skrána senda sem viðhengi í staðinn er það sama skráin — haltu bara áfram í næsta kafla.
+
+Skráin heitir `Fundarritari-Setup-win-x64.exe` og er um 190 MB. Hún vistast venjulega í möppuna *Downloads* (Niðurhal).
 
 > Ef vafrinn segir að skráin sé „ekki algeng“ eða „gæti verið hættuleg“, veldu **Keep** (Halda) → **Keep anyway**.
 > Þetta gerist með öll ný forrit sem ekki eru frá stórum fyrirtækjum og er eðlilegt.
 
 ## 2. Setja upp
 
-1. Tvísmelltu á `Fundarritari-0.1.0-win-x64.exe`.
+1. Tvísmelltu á skrána `Fundarritari-Setup-win-x64.exe` (í möppunni *Downloads*).
 2. Ef bláa glugginn **„Windows protected your PC“** (Windows varði tölvuna þína) birtist:
    smelltu á **More info** (Nánari upplýsingar) og svo **Run anyway** (Keyra samt).
 3. Fylgdu uppsetningarglugganum: **Next → Next → Install → Finish**. Þú mátt hafa allt á sjálfgefnum stillingum.
@@ -132,7 +133,7 @@ til Anthropic til að skrifa fundargerðina. Þú getur eytt fundi (og hljóðsk
 
 ## Mac (macOS 14 eða nýrra)
 
-1. Sæktu skrána sem endar á `mac-arm64.dmg` (nýrri Mac með Apple-örgjörva, M1–M5) eða `mac-x64.dmg` (eldri Intel-Mac).
+1. Sæktu `Fundarritari-Setup-mac-arm64.dmg` (nýrri Mac með Apple-örgjörva, M1–M5) eða `Fundarritari-Setup-mac-x64.dmg` (eldri Intel-Mac) af https://github.com/einarorn228/meeting-notes/releases/latest
    Ef þú veist ekki hvort: Apple-valmynd → *About This Mac* → „Chip: Apple M…“ = arm64.
 2. Opnaðu `.dmg`-skrána og dragðu **Fundarritari** yfir í **Applications**.
 3. Forritið er ekki „notarized“ hjá Apple í þessari prófunarútgáfu, svo macOS neitar að opna það í fyrsta sinn. Gerðu þá þetta **einu sinni**:

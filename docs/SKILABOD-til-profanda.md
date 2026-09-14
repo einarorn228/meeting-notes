@@ -7,8 +7,8 @@ hér er forritið sem ég sagði þér frá – **Fundarritari**. Það skrifar 
 
 **Þú þarft að gera þrennt:**
 
-1. Sækja skrána `Fundarritari-0.1.0-win-x64.exe` (viðhengi / hlekkur hér að neðan) og tvísmella á hana til að setja upp.
-   [Ef geymslan er opin: https://github.com/einarorn228/meeting-notes/releases/download/v0.1.0/Fundarritari-0.1.0-win-x64.exe]
+1. Sækja forritið hér og tvísmella á skrána til að setja upp:
+   https://github.com/einarorn228/meeting-notes/releases/latest/download/Fundarritari-Setup-win-x64.exe
    Ef Windows sýnir bláan glugga „Windows protected your PC“ – smelltu á *More info* og *Run anyway*.
 2. Fylgja uppsetningarhjálpinni sem opnast (7 stutt skref). Bíddu svo þar til neðst til vinstri stendur **„Tilbúið“**
    (forritið sækir íslenska talgreiningarlíkanið, ~3 GB, í fyrsta skipti).
@@ -28,4 +28,4 @@ Einar
 
 ---
 
-*Athugasemd fyrir Einar (ekki senda):* Geymslan á GitHub er lokuð (private), svo hlekkurinn hér að ofan virkar ekki fyrir pabba nema þú gerir hana opinbera (Settings → General → Danger zone → Change visibility). Annars: sæktu skrána sjálfur af https://github.com/einarorn228/meeting-notes/releases/tag/v0.1.0 og sendu hana með Google Drive eða WeTransfer ásamt PDF-skjalinu. Mac-útgáfur: `Fundarritari-0.1.0-mac-arm64.dmg` (Apple-örgjörvi) / `Fundarritari-0.1.0-mac-x64.dmg` (Intel).
+*Athugasemd fyrir Einar (ekki senda):* Hlekkurinn hér að ofan er varanlegur — hann vísar alltaf á nýjustu útgáfuna, svo þú þarft ekki að senda nýjan hlekk þegar ný útgáfa kemur. Mac-útgáfur eru á https://github.com/einarorn228/meeting-notes/releases/latest (`Fundarritari-Setup-mac-arm64.dmg` fyrir Apple-örgjörva, `Fundarritari-Setup-mac-x64.dmg` fyrir Intel).

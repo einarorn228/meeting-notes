@@ -31,7 +31,7 @@ win:
     - target: nsis
       arch: [x64]
   icon: build/icon.ico
-  artifactName: ${productName}-${version}-win-${arch}.${ext}
+  artifactName: ${productName}-Setup-win-${arch}.${ext}
 nsis:
   oneClick: false
   perMachine: false
@@ -55,7 +55,7 @@ mac:
     NSMicrophoneUsageDescription: Fundarritari þarf hljóðnemann til að skrifa upp það sem þú segir á fundum.
     NSAudioCaptureUsageDescription: Fundarritari þarf að heyra hljóðið úr fundarforritinu til að skrifa upp það sem aðrir segja.
     NSScreenCaptureUsageDescription: Notað eingöngu til að ná í kerfishljóð úr fundarforritinu (engin myndupptaka).
-  artifactName: ${productName}-${version}-mac-${arch}.${ext}
+  artifactName: ${productName}-Setup-mac-${arch}.${ext}
 dmg:
   sign: false
 linux:
@@ -65,7 +65,7 @@ linux:
   category: Office
   maintainer: Einar Örn <einarorn864@gmail.com>
   icon: build/icon.png
-  artifactName: ${productName}-${version}-linux-${arch}.${ext}
+  artifactName: ${productName}-Setup-linux-${arch}.${ext}
 publish:
   provider: github
   releaseType: release

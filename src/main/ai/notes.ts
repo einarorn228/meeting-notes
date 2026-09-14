@@ -58,7 +58,7 @@ export async function summarizeMeeting(meetingId: string, templateId: string | u
   const tpl = getTemplate(templateId ?? s.llm.summaryTemplateId)
   const lang = m.language === 'auto' ? 'is' : m.language
   progress('summary', 0.1)
-  const res = await complete(summarySystemPrompt(lang), [{ role: 'user', content: summaryUserPrompt(m, tpl, lang, s.vocabulary) }], { maxTokens: 6000, temperature: 0.2 })
+  const res = await complete(summarySystemPrompt(lang), [{ role: 'user', content: summaryUserPrompt(m, tpl, lang, s.vocabulary) }], { maxTokens: 16000, temperature: 0.2 })
   progress('summary', 0.9)
   const parsed = parseSummary(res.text)
   const summary: Summary = { templateId: tpl.id, language: lang, generatedAt: new Date().toISOString(), provider: res.provider, model: res.model, markdown: res.text.trim(), ...parsed }
@@ -82,7 +82,7 @@ export async function punctuateMeeting(meetingId: string, progress: ProgressFn):
     const batch = segs.slice(i, i + batchSize)
     progress('punctuate', i / segs.length)
     const user = (vocab.length ? `Orðalisti: ${vocab.join(', ')}\n\n` : '') + 'Línur:\n' + batch.map((x) => x.text.replace(/\s+/g, ' ').trim()).join('\n')
-    const res = await complete(punctuateSystemPrompt(lang), [{ role: 'user', content: user }], { maxTokens: 8000, temperature: 0 })
+    const res = await complete(punctuateSystemPrompt(lang), [{ role: 'user', content: user }], { maxTokens: 16000, temperature: 0, effort: 'low' })
     const arr = extractJsonArray(res.text)
     if (!arr || arr.length !== batch.length) {
       // fall back: try line split
@@ -122,7 +122,7 @@ export async function chatWithMeeting(meetingId: string, message: string): Promi
   if (!m) throw new Error('Fundur fannst ekki')
   const lang = m.language === 'auto' ? 'is' : m.language
   const history = m.chat.slice(-10).map((c) => ({ role: c.role, content: c.content }))
-  const res = await complete(chatSystemPrompt(lang, m), [...history, { role: 'user', content: message }], { maxTokens: 2000, temperature: 0.2 })
+  const res = await complete(chatSystemPrompt(lang, m), [...history, { role: 'user', content: message }], { maxTokens: 8000, temperature: 0.2, effort: 'medium' })
   const now = new Date().toISOString()
   const msgs: ChatMessage[] = [...m.chat, { role: 'user', content: message, at: now }, { role: 'assistant', content: res.text.trim(), at: now }]
   saveMeeting({ ...(loadMeeting(meetingId) ?? m), chat: msgs })
@@ -143,7 +143,7 @@ export async function chatWithAllMeetings(message: string): Promise<string> {
   }
   if (!corpus) throw new Error('Engir fundir til að leita í')
   const system = chatSystemPrompt(lang, null) + (lang === 'is' ? '\n\nHér eru allir fundir notandans (samantektir eða uppskriftir). Vísaðu í titil og dagsetningu fundar í svörum.\n\n' : '\n\nAll of the user\'s meetings follow. Cite meeting title and date.\n\n') + corpus
-  const res = await complete(system, [{ role: 'user', content: message }], { maxTokens: 2000, temperature: 0.2 })
+  const res = await complete(system, [{ role: 'user', content: message }], { maxTokens: 8000, temperature: 0.2, effort: 'medium' })
   return res.text.trim()
 }
 
