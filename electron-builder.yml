@@ -72,4 +72,7 @@ publish:
   provider: github
   owner: einarorn228
   repo: meeting-notes
-  releaseType: release
+  # Draft, not release: each platform job uploads to the same release, so publishing immediately made it
+  # public as soon as the first job finished. Updaters then saw a release whose latest.yml did not exist yet
+  # ("Cannot find latest.yml ... 404"). CI flips the draft to public only once every platform has uploaded.
+  releaseType: draft

@@ -1,7 +1,7 @@
 {
   "name": "fundarritari",
   "productName": "Fundarritari",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Icelandic-first meeting transcription and notes for Microsoft Teams, Zoom, Google Meet and any other meeting app.",
   "main": "./out/main/index.js",
   "author": {

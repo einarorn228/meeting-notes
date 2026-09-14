@@ -75,8 +75,11 @@ export function initUpdater(onStatus: Emit, isBusy: () => boolean): void {
   autoUpdater.on('download-progress', (p) => set({ state: 'downloading', progress: (p.percent ?? 0) / 100 }))
   autoUpdater.on('update-downloaded', (info) => set({ state: 'ready', version: info.version, progress: 1 }))
   autoUpdater.on('error', (err) => {
-    set({ state: 'error', message: err instanceof Error ? err.message : String(err) })
+    set({ state: 'error', message: updateErrorMessage(err) })
     userInitiated = false
+    // A release being uploaded, or a flaky network, should heal itself rather than wait for tomorrow.
+    if (retryTimer) clearTimeout(retryTimer)
+    retryTimer = setTimeout(() => void checkForUpdates(false), 15 * 60 * 1000)
   })
 
   installGuard = isBusy
@@ -86,6 +89,20 @@ export function initUpdater(onStatus: Emit, isBusy: () => boolean): void {
 }
 
 let installGuard: () => boolean = () => false
+let retryTimer: NodeJS.Timeout | null = null
+
+/** Turns electron-updater's raw errors (which carry HTTP headers and stack traces) into one usable line. */
+export function updateErrorMessage(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err)
+  const first = raw.split('\n')[0].trim()
+  if (/latest.*\.yml/i.test(first) && /404|cannot find/i.test(first)) {
+    return 'Ný útgáfa er í vinnslu og ekki fullbúin. Forritið reynir aftur eftir smá stund.'
+  }
+  if (/ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNRESET|net::/i.test(first)) {
+    return 'Náði ekki sambandi við uppfærsluþjóninn. Forritið reynir aftur eftir smá stund.'
+  }
+  return first.slice(0, 300)
+}
 
 export async function checkForUpdates(fromUser = true): Promise<UpdateStatus> {
   if (!app.isPackaged) return status
@@ -93,7 +110,7 @@ export async function checkForUpdates(fromUser = true): Promise<UpdateStatus> {
   try {
     await autoUpdater.checkForUpdates()
   } catch (e) {
-    set({ state: 'error', message: e instanceof Error ? e.message : String(e) })
+    set({ state: 'error', message: updateErrorMessage(e) })
   }
   return status
 }

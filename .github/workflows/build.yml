@@ -98,3 +98,31 @@ jobs:
             release/*.AppImage
             release/*.deb
           if-no-files-found: warn
+
+  publish-release:
+    name: Publish the release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Every platform job uploads into the same draft release. Making it public only once they have all
+      # finished is what stops an updater seeing a release whose latest.yml has not been uploaded yet.
+      - name: Publish the draft once every platform has uploaded
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="v$(node -p "require('./package.json').version")"
+          echo "Publishing $TAG"
+          ASSETS=$(gh release view "$TAG" --json assets --jq '.assets[].name')
+          echo "$ASSETS"
+          MISSING=""
+          for required in latest.yml latest-mac.yml Fundarritari-Setup-win-x64.exe; do
+            grep -qx "$required" <<<"$ASSETS" || MISSING="$MISSING $required"
+          done
+          if [ -n "$MISSING" ]; then
+            echo "::error::Refusing to publish $TAG - missing asset(s):$MISSING"
+            exit 1
+          fi
+          gh release edit "$TAG" --draft=false --latest
