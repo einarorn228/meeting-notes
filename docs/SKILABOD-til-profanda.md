@@ -16,6 +16,10 @@ hér er forritið sem ég sagði þér frá – **Fundarritari**. Það skrifar 
 
 Nánari leiðbeiningar með myndum af öllum skrefum eru í viðhengdu PDF-skjali (*Fundarritari-leidbeiningar.pdf*).
 
+**Ef þú varst þegar búinn að setja forritið upp:** ekki eyða neinu – keyrðu bara nýju skrána yfir það gamla.
+Allt sem þú varst búinn að stilla helst óbreytt. Eftir þessa uppsetningu uppfærir forritið sig sjálft: það lætur
+þig vita efst í glugganum þegar ný útgáfa er tilbúin og þá smellirðu á **Endurræsa núna**.
+
 Ef þú vilt fá sjálfvirka fundargerð líka: í skrefi 6 í uppsetningarhjálpinni velurðu *Anthropic (Claude)* og límir
 inn þennan lykil: `[SETJA LYKIL HÉR]` (ekki deila honum með öðrum).
 
