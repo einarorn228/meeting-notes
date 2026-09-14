@@ -99,10 +99,9 @@ export class SidecarManager extends EventEmitter {
   private proc: ChildProcessWithoutNullStreams | null = null
   private status: SidecarStatus = { state: 'not-installed' }
   private pendingHello: ((e: SidecarEvent) => void) | null = null
-  private loadedModel: { modelId: string; device: string; computeType: string } | null = null
+  private loadedModel: { modelId: string; requestedDevice: string; requestedComputeType: string; device: string; computeType: string } | null = null
   private starting: Promise<void> | null = null
   private loading: Promise<void> | null = null
-  private cudaAvailable = false
   /** Last stderr lines, so a crash-on-startup reports *why* instead of a bare "sidecar exited". */
   private stderrTail: string[] = []
 
@@ -216,7 +215,6 @@ export class SidecarManager extends EventEmitter {
         this.setStatus({ state: 'error', message: String(e) })
       })
       const hello = await this.request({ type: 'hello' }, 'ready', 60000)
-      this.cudaAvailable = !!hello.cuda
       this.setStatus({ state: 'idle', message: `Tilbúið (faster-whisper ${hello.faster_whisper ?? ''}${hello.cuda ? ', CUDA' : ''})` })
     })()
     try {
@@ -325,11 +323,11 @@ export class SidecarManager extends EventEmitter {
     const modelId = s.local.modelId
     const info = LOCAL_MODELS.find((m) => m.id === modelId) ?? LOCAL_MODELS[0]
     await this.ensureStarted()
-    let device = s.local.device
-    if (device === 'auto') device = this.cudaAvailable ? 'cuda' : 'cpu'
-    let computeType = s.local.computeType
-    if (computeType === 'auto') computeType = device === 'cuda' ? 'float16' : 'int8'
-    if (this.loadedModel && this.loadedModel.modelId === info.id && this.loadedModel.device === device && this.loadedModel.computeType === computeType) return
+    // Pass the settings through verbatim: only the sidecar can see which compute types CTranslate2 actually
+    // supports on this machine, and guessing here is what produced "float16 ... not supported" on a tester's PC.
+    const device = s.local.device
+    const computeType = s.local.computeType
+    if (this.loadedModel && this.loadedModel.modelId === info.id && this.loadedModel.requestedDevice === device && this.loadedModel.requestedComputeType === computeType) return
     if (!this.installedModels().includes(info.id)) await this.downloadModel(info.id)
     this.setStatus({ state: 'loading-model', modelId: info.id, message: `Hleð líkani ${info.label}…`, progress: undefined })
     const ev = await this.request(
@@ -337,7 +335,14 @@ export class SidecarManager extends EventEmitter {
       'model_loaded',
       30 * 60 * 1000
     )
-    this.loadedModel = { modelId: info.id, device: String(ev.device ?? device), computeType: String(ev.compute_type ?? computeType) }
+    // Keep both: the request decides whether a reload is needed, the resolved pair is what is shown.
+    this.loadedModel = {
+      modelId: info.id,
+      requestedDevice: device,
+      requestedComputeType: computeType,
+      device: String(ev.device ?? device),
+      computeType: String(ev.compute_type ?? computeType)
+    }
     this.setStatus({ state: 'ready', modelId: info.id, device: this.loadedModel.device, message: `Líkan tilbúið (${this.loadedModel.device}, ${this.loadedModel.computeType})` })
   }
 

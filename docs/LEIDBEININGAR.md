@@ -123,6 +123,7 @@ Flipar fundarins:
 | „Kerfishljóð“-mælirinn hreyfist ekki / aðeins mín rödd er skrifuð | Athugaðu að Teams spili hljóðið í sama tæki og Windows notar sem *sjálfgefið hljóðúttak* (hægrismelltu á hátalaratáknið við klukkuna → *Sound settings*). Prófaðu aftur undir **Stillingar → Hljóð → Prófa upptöku**. |
 | Windows spyr um leyfi fyrir hljóðnema en ég ýtti á Nei | *Settings → Privacy & security → Microphone* → kveiktu á „Let desktop apps access your microphone“. |
 | Neðst til vinstri stendur „Villa“ eða „Ekki uppsett“ | Farðu í **Stillingar → Talgreining** og smelltu á **Setja upp þjónustu** og svo **Sækja líkan**. |
+| Villa um „float16 compute type“ þegar líkan er hlaðið | Forritið velur nú sjálft rétta stillingu fyrir tölvuna; uppfærðu í nýjustu útgáfu. Þarftu lausn strax: **Stillingar → Talgreining** → settu **Tæki** á `cpu` og **Reiknigerð** á `int8`, og smelltu svo á **Hlaða líkani**. |
 | Ekkert gerist í langan tíma eftir að ég stöðva | Stór fundur á hægri tölvu getur tekið nokkrar mínútur í vinnslu. Skildu forritið eftir opið. |
 | Samantekt verður ekki til | Það þarf gervigreindarlykil: **Stillingar → Gervigreind** → *Anthropic (Claude)* → límdu lykilinn → **Prófa tengingu**. |
 | Ég vil byrja upp á nýtt | **Stillingar → Persónuvernd → Opna möppu** – þar eru allir fundir sem möppur. Það má eyða þeim. |

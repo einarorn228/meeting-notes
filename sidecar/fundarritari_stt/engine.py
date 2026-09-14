@@ -66,12 +66,52 @@ def resolve_device(device: str) -> str:
     return device
 
 
+def supported_compute_types(device: str) -> set:
+    """What CTranslate2 will actually run on this machine. Empty set = could not ask."""
+    try:
+        import ctranslate2
+
+        return set(ctranslate2.get_supported_compute_types(device))
+    except Exception:  # noqa: BLE001 - an unavailable backend just means "we cannot tell"
+        return set()
+
+
+# Preference order per device. float16 needs a GPU of compute capability >= 7.0; older cards and every CPU
+# reject it with "Requested float16 compute type, but the target device or backend do not support efficient
+# float16 computation", so the type is never assumed - it is checked first.
+_PREFERRED = {
+    "cuda": ("float16", "int8_float16", "int8", "float32"),
+    "cpu": ("int8", "int8_float32", "float32"),
+}
+
+
 def resolve_compute_type(compute_type: str, device: str) -> str:
     if compute_type not in COMPUTE_TYPES:
         raise ValueError(f"unknown compute_type {compute_type!r}; expected one of {COMPUTE_TYPES}")
-    if compute_type == "auto":
-        return "float16" if device == "cuda" else "int8"
-    return compute_type
+    preferred = _PREFERRED.get(device, _PREFERRED["cpu"])
+    supported = supported_compute_types(device)
+    if compute_type != "auto":
+        if not supported or compute_type in supported:
+            return compute_type
+        fallback = next((c for c in preferred if c in supported), "int8")
+        log.warning("compute type %s is not supported on %s; using %s instead", compute_type, device, fallback)
+        return fallback
+    if not supported:
+        return preferred[0]
+    return next((c for c in preferred if c in supported), "int8")
+
+
+def _load_candidates(device: str, compute_type: str) -> list:
+    """The requested combination first, then progressively safer ones, ending at CPU int8."""
+    candidates = [(device, compute_type)]
+    if device == "cuda":
+        for fallback in ("int8_float16", "int8"):
+            if fallback in supported_compute_types("cuda"):
+                candidates.append(("cuda", fallback))
+    for cpu_compute in ("int8", "float32"):
+        candidates.append(("cpu", cpu_compute))
+    seen = set()
+    return [c for c in candidates if not (c in seen or seen.add(c))]
 
 
 def default_threads() -> int:
@@ -119,13 +159,30 @@ class WhisperEngine:
             model_id, model_path, resolved_device, resolved_compute, cpu_threads,
         )
         started = time.perf_counter()
-        model = WhisperModel(
-            model_path,
-            device=resolved_device,
-            compute_type=resolved_compute,
-            cpu_threads=cpu_threads,
-            local_files_only=True,
-        )
+        model = None
+        errors: list[str] = []
+        # Capability queries do not catch everything: a CUDA build can pass the compute-type check and then
+        # fail on a missing cuDNN at load time. So try the plan, then progressively safer combinations, and
+        # only give up once plain CPU int8 - which every machine can run - has also failed.
+        for try_device, try_compute in _load_candidates(resolved_device, resolved_compute):
+            try:
+                model = WhisperModel(
+                    model_path,
+                    device=try_device,
+                    compute_type=try_compute,
+                    cpu_threads=cpu_threads,
+                    local_files_only=True,
+                )
+            except Exception as exc:  # noqa: BLE001 - any backend failure is worth falling back from
+                errors.append(f"{try_device}/{try_compute}: {exc}")
+                log.warning("could not load %s on %s/%s: %s", model_id, try_device, try_compute, exc)
+                continue
+            if (try_device, try_compute) != (resolved_device, resolved_compute):
+                log.info("fell back to %s/%s for %s", try_device, try_compute, model_id)
+            resolved_device, resolved_compute = try_device, try_compute
+            break
+        if model is None:
+            raise RuntimeError("Tókst ekki að hlaða talgreiningarlíkani. " + " | ".join(errors))
         elapsed = time.perf_counter() - started
         # Replace the previous model (if any) only after the new one loaded successfully.
         self.model = model
