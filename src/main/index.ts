@@ -3,7 +3,8 @@ import { join } from 'node:path'
 import { existsSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { getSettings, onSettingsChange } from './settings'
-import { broadcast, currentRecordingState, isRecording, registerIpc, startRecording, stopRecording } from './ipc'
+import { broadcast, currentRecordingState, importAudioPath, isRecording, registerIpc, startRecording, stopRecording } from './ipc'
+import { loadMeeting } from './store'
 import { MeetingDetector } from './detect/apps'
 import { CalendarService } from './detect/calendar'
 import { sidecar } from './transcription/sidecar'
@@ -197,6 +198,7 @@ app.whenReady().then(() => {
   )
 
   registerIpc({ getWindow: () => mainWindow, showWindow, detector, calendar })
+  sidecar.on('log', (line: string) => console.error('[stt]', line))
   mainWindow = createWindow()
   buildTray()
   registerHotkeys()
@@ -214,6 +216,23 @@ app.whenReady().then(() => {
   }
 
   app.on('activate', () => showWindow())
+
+  // Headless end-to-end check: transcribe + diarize a file through the real pipeline, dump the meeting, exit.
+  if (process.env.FUNDARRITARI_E2E) {
+    void (async () => {
+      const t0 = Date.now()
+      try {
+        const { meetingId } = await importAudioPath(process.env.FUNDARRITARI_E2E!, { wait: true, stereo: process.env.FUNDARRITARI_E2E_STEREO === '1', skipLlm: true })
+        const m = loadMeeting(meetingId)
+        console.log('E2E_RESULT ' + JSON.stringify({ meetingId, seconds: (Date.now() - t0) / 1000, status: m?.status, segments: m?.segments.length, speakers: m?.speakerNames, sample: m?.segments.slice(0, 5) }))
+      } catch (e) {
+        console.log('E2E_RESULT ' + JSON.stringify({ error: String(e) }))
+      }
+      quitting = true
+      sidecar.shutdown()
+      setTimeout(() => app.exit(0), 500)
+    })()
+  }
 })
 
 app.on('before-quit', () => {

@@ -42,7 +42,9 @@ function venvPython(): string {
 
 function bundledBinary(): string | null {
   const name = process.platform === 'win32' ? 'fundarritari-stt.exe' : 'fundarritari-stt'
+  const os = process.platform === 'win32' ? 'win' : process.platform === 'darwin' ? 'mac' : 'linux'
   const candidates = [
+    join(process.resourcesPath ?? '', 'bin', os, 'fundarritari-stt', name),
     join(process.resourcesPath ?? '', 'bin', 'fundarritari-stt', name),
     join(process.resourcesPath ?? '', 'bin', name)
   ]
@@ -99,6 +101,7 @@ export class SidecarManager extends EventEmitter {
   private pendingHello: ((e: SidecarEvent) => void) | null = null
   private loadedModel: { modelId: string; device: string; computeType: string } | null = null
   private starting: Promise<void> | null = null
+  private loading: Promise<void> | null = null
   private cudaAvailable = false
 
   getStatus(): SidecarStatus {
@@ -249,7 +252,8 @@ export class SidecarManager extends EventEmitter {
         reject(new Error(`sidecar timeout waiting for ${replyType}`))
       }, timeoutMs)
       const onEvent = (ev: SidecarEvent): void => {
-        if (ev.type === replyType && (!cmd.request_id || ev.request_id === cmd.request_id)) {
+        const idMatch = cmd.request_id ? ev.request_id === cmd.request_id : cmd.model_id ? ev.model_id === cmd.model_id : true
+        if (ev.type === replyType && idMatch) {
           cleanup()
           resolve(ev)
         } else if (ev.type === 'error' && (ev.fatal || (cmd.request_id && ev.request_id === cmd.request_id) || (!cmd.request_id && !ev.session_id))) {
@@ -283,12 +287,20 @@ export class SidecarManager extends EventEmitter {
     if (!info) throw new Error('unknown model ' + modelId)
     await this.ensureStarted()
     this.setStatus({ state: 'downloading-model', modelId, progress: 0, message: `Sæki ${info.label} (${(info.sizeMb / 1000).toFixed(1)} GB)…` })
-    await this.request({ type: 'download_model', model_id: modelId, repo: info.repo, models_dir: modelsDir(), request_id: 'dl-' + modelId }, 'model_downloaded', 6 * 3600 * 1000)
+    await this.request({ type: 'download_model', model_id: modelId, repo: info.repo, models_dir: modelsDir() }, 'model_downloaded', 6 * 3600 * 1000)
     this.setStatus({ state: 'idle', modelId, progress: 1, message: 'Líkan sótt' })
   }
 
-  /** Loads the configured model if not already loaded. */
+  /** Loads the configured model if not already loaded (serialised so concurrent callers share one load). */
   async ensureModel(): Promise<void> {
+    if (this.loading) return this.loading
+    this.loading = this.ensureModelInner().finally(() => {
+      this.loading = null
+    })
+    return this.loading
+  }
+
+  private async ensureModelInner(): Promise<void> {
     const s = getSettings()
     const modelId = s.local.modelId
     const info = LOCAL_MODELS.find((m) => m.id === modelId) ?? LOCAL_MODELS[0]
@@ -301,7 +313,7 @@ export class SidecarManager extends EventEmitter {
     if (!this.installedModels().includes(info.id)) await this.downloadModel(info.id)
     this.setStatus({ state: 'loading-model', modelId: info.id, message: `Hleð líkani ${info.label}…`, progress: undefined })
     const ev = await this.request(
-      { type: 'load_model', model_id: info.id, repo: info.repo, models_dir: modelsDir(), device, compute_type: computeType, threads: s.local.threads, request_id: 'load-' + info.id },
+      { type: 'load_model', model_id: info.id, repo: info.repo, models_dir: modelsDir(), device, compute_type: computeType, threads: s.local.threads },
       'model_loaded',
       30 * 60 * 1000
     )

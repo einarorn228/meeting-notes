@@ -19,10 +19,10 @@ extraResources:
   - from: resources/icon.png
     to: icon.png
   # Optional: a PyInstaller build of the sidecar placed in resources/sidecar-bin/<os> by CI
-  - from: resources/sidecar-bin/${os}
+  - from: resources/sidecar-bin
     to: bin
     filter:
-      - '**/*'
+      - '${os}/**/*'
 asar: true
 asarUnpack:
   - resources/**

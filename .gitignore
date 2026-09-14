@@ -13,3 +13,7 @@ sidecar/build/
 sidecar/dist/
 resources/sidecar/
 resources/models/
+.pytest_cache/
+resources/sidecar-bin/*
+!resources/sidecar-bin/.gitkeep
+.build-venv/

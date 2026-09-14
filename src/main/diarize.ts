@@ -16,8 +16,8 @@ export interface DiarSegment {
 }
 
 /** Assigns each system-channel transcript segment the diarization speaker with the largest time overlap. */
-export function assignSpeakers(segments: Segment[], diar: DiarSegment[], label: (n: number) => string): { segments: Segment[]; speakers: string[] } {
-  const used = new Map<number, string>()
+export function assignSpeakers(segments: Segment[], diar: DiarSegment[], label: (n: number) => string): { segments: Segment[]; speakers: Record<string, string> } {
+  const used = new Map<string, string>()
   const out = segments.map((s) => {
     if (s.channel !== 'system') return s
     const overlaps = new Map<number, number>()
@@ -35,10 +35,10 @@ export function assignSpeakers(segments: Segment[], diar: DiarSegment[], label: 
     }
     if (best === null) return s
     const key = `spk${best + 1}`
-    if (!used.has(best)) used.set(best, label(best + 1))
+    if (!used.has(key)) used.set(key, label(best + 1))
     return { ...s, speaker: key }
   })
-  return { segments: out, speakers: [...used.values()] }
+  return { segments: out, speakers: Object.fromEntries(used) }
 }
 
 /** Splits a long segment across diarization boundaries when two speakers clearly share it (optional refinement). */
@@ -86,17 +86,7 @@ export async function diarizeMeeting(meetingId: string, progress: (stage: string
   const latest = loadMeeting(meetingId) ?? m
   const { segments, speakers } = assignSpeakers(latest.segments, diar, (n) => `Þátttakandi ${n}`)
   const names = { ...latest.speakerNames }
-  speakers.forEach((label, i) => {
-    const key = `spk${i + 1}`
-    if (!names[key]) names[key] = label
-  })
-  // Keep the diarization keys consistent: label index == speaker index.
-  for (const seg of segments) {
-    if (seg.channel === 'system' && seg.speaker.startsWith('spk')) {
-      const n = Number(seg.speaker.slice(3))
-      if (!names[seg.speaker]) names[seg.speaker] = `Þátttakandi ${n}`
-    }
-  }
+  for (const [key, label] of Object.entries(speakers)) if (!names[key]) names[key] = label
   const updated = saveMeeting({ ...latest, segments, speakerNames: names })
   progress('diarize', 1)
   return updated

@@ -18,3 +18,10 @@ Notes
 - Speaker diarization (sherpa-onnx, pyannote segmentation 3.0 + CAM++ VoxCeleb embeddings): 16 s for the same
   209 s file on CPU.
 - Sidecar integration test (`pytest --run-slow`): streaming protocol on the first 40 s produced monotonic segments.
+
+## End-to-end check through the Electron main process (headless)
+`FUNDARRITARI_E2E=<stereo wav>` imports the file, runs the sidecar (model load 15–30 s), transcribes the system
+channel with VAD chunking and diarizes it: 60 s of Spjallrómur conversation → 14 segments, 5 detected speakers,
+150 s wall-clock on 4 slow CPU cores (no GPU). Sample output:
+`[00:00] Þátttakandi 1: aðgangarréttur var bara steikt upp allt draslið með` /
+`[00:04] Þátttakandi 2: og þarna reyndist reyndist prýðilega gott`.

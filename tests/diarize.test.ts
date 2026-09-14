@@ -17,6 +17,6 @@ describe('assignSpeakers', () => {
     expect(out[1].speaker).toBe('me')
     expect(out[2].speaker).toBe('spk2') // 3 s overlap with speaker 1 vs 1 s with speaker 0
     expect(out[3].speaker).toBe('others') // no overlap
-    expect(speakers).toEqual(['Þátttakandi 1', 'Þátttakandi 2'])
+    expect(speakers).toEqual({ spk1: 'Þátttakandi 1', spk2: 'Þátttakandi 2' })
   })
 })

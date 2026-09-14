@@ -67,7 +67,7 @@ export async function stopRecording(): Promise<{ meetingId?: string }> {
 }
 
 /** After a recording: punctuate (if the engine writes lowercase) and summarize, per settings. */
-async function postProcess(meetingId: string): Promise<void> {
+async function postProcess(meetingId: string, skipLlm = false): Promise<void> {
   const st = getSettings()
   const m = loadMeeting(meetingId)
   if (!m || m.segments.length === 0) return
@@ -82,7 +82,7 @@ async function postProcess(meetingId: string): Promise<void> {
         broadcast('transcript:error', { meetingId, message: 'Aðgreining ræðumanna mistókst: ' + (e instanceof Error ? e.message : String(e)) })
       }
     }
-    if (st.llm.provider !== 'none') {
+    if (st.llm.provider !== 'none' && !skipLlm) {
       const model = LOCAL_MODELS.find((x) => x.id === m.modelId)
       const needsPunct = m.engine === 'local' && model && !model.punctuated
       if (st.llm.autoPunctuate && needsPunct && !m.punctuated) {
@@ -159,7 +159,11 @@ async function importAudioFile(ctx: AppContext): Promise<{ meetingId: string } |
     properties: ['openFile']
   })
   if (res.canceled || res.filePaths.length === 0) return null
-  const src = res.filePaths[0]
+  return importAudioPath(res.filePaths[0])
+}
+
+/** Copies an audio file into a new meeting and transcribes it in the background. Returns when done if `wait`. */
+export async function importAudioPath(src: string, opts: { wait?: boolean; stereo?: boolean; skipLlm?: boolean } = {}): Promise<{ meetingId: string }> {
   const id = newId()
   const ext = extname(src).toLowerCase()
   const dest = join(meetingDir(id), 'audio' + ext)
@@ -186,13 +190,13 @@ async function importAudioFile(ctx: AppContext): Promise<{ meetingId: string } |
   }
   saveMeeting(meeting)
   broadcast('meetings:changed', undefined)
-  void (async () => {
+  const work = (async () => {
     const engine = createEngine(st.engine)
     const progress = (stage: string, progress?: number): void => broadcast('ai:progress', { meetingId: id, stage, progress })
     const segments: Meeting['segments'] = []
     try {
       if (!engine.transcribeFile) throw new Error('Vélin styður ekki skrár')
-      await engine.transcribeFile(dest, { language: st.language, vocabulary: st.vocabulary, stereo: false }, {
+      await engine.transcribeFile(dest, { language: st.language, vocabulary: st.vocabulary, stereo: !!opts.stereo }, {
         onSegment: (seg) => {
           const s = { id: randomUUID(), channel: seg.channel, start: seg.start, end: seg.end, text: seg.text, speaker: seg.speaker ?? 'others' }
           segments.push(s)
@@ -206,12 +210,14 @@ async function importAudioFile(ctx: AppContext): Promise<{ meetingId: string } |
       saveMeeting({ ...(loadMeeting(id) ?? meeting), segments: segments.sort((a, b) => a.start - b.start), status: 'done', durationSec: dur })
       broadcast('meeting:updated', { meetingId: id })
       broadcast('meetings:changed', undefined)
-      await postProcess(id)
+      await postProcess(id, opts.skipLlm)
     } catch (e) {
       saveMeeting({ ...(loadMeeting(id) ?? meeting), status: 'error', error: e instanceof Error ? e.message : String(e) })
       broadcast('meeting:updated', { meetingId: id })
+      if (opts.wait) throw e
     }
   })()
+  if (opts.wait) await work
   return { meetingId: id }
 }
 
