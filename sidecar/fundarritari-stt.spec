@@ -15,7 +15,9 @@ for pkg in ("faster_whisper", "ctranslate2", "onnxruntime", "tokenizers", "huggi
 hiddenimports += collect_submodules("fundarritari_stt")
 
 a = Analysis(
-    ["fundarritari_stt/__main__.py"],
+    # Must be the wrapper, not fundarritari_stt/__main__.py: PyInstaller runs the analysed script without a
+    # package context, so the package module's relative imports would fail at startup. See sidecar_main.py.
+    ["sidecar_main.py"],
     pathex=["."],
     binaries=binaries,
     datas=datas,

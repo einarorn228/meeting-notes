@@ -103,6 +103,13 @@ export class SidecarManager extends EventEmitter {
   private starting: Promise<void> | null = null
   private loading: Promise<void> | null = null
   private cudaAvailable = false
+  /** Last stderr lines, so a crash-on-startup reports *why* instead of a bare "sidecar exited". */
+  private stderrTail: string[] = []
+
+  private crashDetail(): string {
+    const lines = this.stderrTail.filter((l) => l.trim()).slice(-6)
+    return lines.length ? `\n\nSíðustu skilaboð frá talgreiningarferlinu:\n${lines.join('\n')}` : ''
+  }
 
   getStatus(): SidecarStatus {
     return { ...this.status, installedModels: this.installedModels() }
@@ -186,17 +193,23 @@ export class SidecarManager extends EventEmitter {
         throw new Error('sidecar-not-installed')
       }
       const env = { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1', HF_HUB_DISABLE_TELEMETRY: '1' }
+      this.stderrTail = []
       const proc = spawn(rt.cmd, rt.args, { cwd: rt.cwd ?? dirname(rt.cmd), env, windowsHide: true })
       this.proc = proc
       const rl = createInterface({ input: proc.stdout })
       rl.on('line', (line) => this.handleLine(line))
       const rle = createInterface({ input: proc.stderr })
-      rle.on('line', (line) => this.emit('log', line))
+      rle.on('line', (line) => {
+        this.stderrTail.push(line)
+        if (this.stderrTail.length > 40) this.stderrTail.shift()
+        this.emit('log', line)
+      })
       proc.on('exit', (code) => {
         this.emit('log', `sidecar exited with code ${code}`)
         this.proc = null
         this.loadedModel = null
-        if (this.status.state !== 'error') this.setStatus({ state: 'idle', message: 'Talgreiningarferli lokaði' })
+        if (code) this.setStatus({ state: 'error', message: `Talgreiningarferlið hætti óvænt (kóði ${code}).${this.crashDetail()}` })
+        else if (this.status.state !== 'error') this.setStatus({ state: 'idle', message: 'Talgreiningarferli lokaði' })
         this.emit('exit', code)
       })
       proc.on('error', (e) => {
@@ -268,9 +281,9 @@ export class SidecarManager extends EventEmitter {
           reject(new Error(String(ev.message)))
         }
       }
-      const onExit = (): void => {
+      const onExit = (code: number | null): void => {
         cleanup()
-        reject(new Error('sidecar exited'))
+        reject(new Error(`Talgreiningarferlið hætti óvænt (kóði ${code}).${this.crashDetail()}`))
       }
       const cleanup = (): void => {
         clearTimeout(timer)

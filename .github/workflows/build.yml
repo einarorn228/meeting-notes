@@ -73,6 +73,14 @@ jobs:
           pyinstaller --noconfirm fundarritari-stt.spec
           mkdir -p ../resources/sidecar-bin/${{ matrix.sidecar_dir }}
           cp -R dist/fundarritari-stt ../resources/sidecar-bin/${{ matrix.sidecar_dir }}/
+      - name: Smoke-test the sidecar binary
+        shell: bash
+        # A sidecar that builds but crashes on startup reaches the user only as "sidecar exited", so prove
+        # the packaged binary actually answers the protocol before it goes into an installer.
+        run: |
+          BIN=resources/sidecar-bin/${{ matrix.sidecar_dir }}/fundarritari-stt/fundarritari-stt
+          [ "${{ matrix.sidecar_dir }}" = "win" ] && BIN="$BIN.exe"
+          python scripts/smoke-sidecar.py "$BIN" --full
       - name: Build app
         run: npm run build
       - name: Package (${{ matrix.target }})
