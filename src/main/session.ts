@@ -30,7 +30,9 @@ export class RecordingSession extends EventEmitter {
   private meeting: Meeting
   private engine: TranscriptionEngine | null = null
   private wav: StereoWavWriter | null = null
+  /** Wall clock of the moment audio started flowing (set once the engine is up), and of the stop button. */
   private startedAt = Date.now()
+  private stoppedAt: number | null = null
   private paused = false
   private levels = { mic: 0, system: 0 }
   private lastLoud: Record<ChannelId, number> = { mic: Date.now(), system: Date.now() }
@@ -114,6 +116,8 @@ export class RecordingSession extends EventEmitter {
       this.emit('error', this.meetingId, this.engineStatus)
       this.engine = null
     }
+    this.startedAt = Date.now()
+    this.lastLoud = { mic: this.startedAt, system: this.startedAt }
     this.emitState()
   }
 
@@ -181,8 +185,14 @@ export class RecordingSession extends EventEmitter {
     }, 1500)
   }
 
+  /**
+   * Meeting time in seconds: the wall clock since audio started, or the audio position if that is ahead. Frozen
+   * at the stop button - finishing the transcription backlog afterwards can take minutes on a slow machine and
+   * must not be counted as meeting length (it used to be: a 3-minute call exported as "Lengd: 07:58").
+   */
   elapsedSec(): number {
-    return Math.max((Date.now() - this.startedAt) / 1000, Math.max(this.lastTMs.mic, this.lastTMs.system) / 1000)
+    const now = this.stoppedAt ?? Date.now()
+    return Math.max((now - this.startedAt) / 1000, Math.max(this.lastTMs.mic, this.lastTMs.system) / 1000)
   }
 
   getState(): RecordingState {
@@ -213,6 +223,7 @@ export class RecordingSession extends EventEmitter {
   async stop(): Promise<Meeting> {
     if (this.stopping) return this.meeting
     this.stopping = true
+    this.stoppedAt = Date.now()
     clearInterval(this.ticker)
     if (this.saveTimer) {
       clearTimeout(this.saveTimer)
