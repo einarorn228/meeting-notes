@@ -22,10 +22,11 @@ log = logging.getLogger("fundarritari_stt.diarize")
 SEGMENTATION_REPO = "csukuangfj/sherpa-onnx-pyannote-segmentation-3-0"
 SEGMENTATION_FILE = "model.onnx"
 EMBEDDING_REPO = "csukuangfj/speaker-embedding-models"
-# TitaNet-large (NVIDIA NeMo). Chosen over the 30 MB CAM++ model it replaces after a comparison on real
-# recordings of 1-4 speakers: CAM++ was only right for 1 and 2 (its base clustering mixed two voices when
-# there were 3 or 4); TitaNet found the exact count with purity 1.00 in every case, and ran twice as fast.
-EMBEDDING_FILE = "nemo_en_titanet_large.onnx"
+# ERes2Net (3D-Speaker, VoxCeleb). Chosen after comparing four models through the whole pipeline on real
+# recordings of 1-4 speakers: the CAM++ model it replaces was only right for 1 and 2 (its base clustering
+# mixed two voices when there were 3 or 4); ERes2Net and TitaNet-large both found the exact count with
+# purity 1.00 in every case at every merge threshold tried, and ERes2Net is 26 MB to TitaNet's 101.
+EMBEDDING_FILE = "3dspeaker_speech_eres2net_sv_en_voxceleb_16k.onnx"
 MODEL_ID = "diarization"
 
 
@@ -74,10 +75,10 @@ def ensure_models(models_dir: str, emit: Optional[EventSink] = None) -> tuple[st
         emit.emit("status", state="downloading-model", model_id=MODEL_ID, message="Downloading speaker diarization models", progress=0.0)
     hf_hub_download(SEGMENTATION_REPO, SEGMENTATION_FILE, local_dir=d)
     if emit:
-        emit.emit("progress", model_id=MODEL_ID, progress=0.06, downloaded_mb=6.0, total_mb=107.0)
+        emit.emit("progress", model_id=MODEL_ID, progress=0.2, downloaded_mb=6.0, total_mb=32.0)
     hf_hub_download(EMBEDDING_REPO, EMBEDDING_FILE, local_dir=d)
     if emit:
-        emit.emit("progress", model_id=MODEL_ID, progress=1.0, downloaded_mb=107.0, total_mb=107.0)
+        emit.emit("progress", model_id=MODEL_ID, progress=1.0, downloaded_mb=32.0, total_mb=32.0)
     return seg, emb
 
 
@@ -114,7 +115,7 @@ def _build(seg: str, emb: str, threshold: float, num_speakers: int, threads: int
 # Clusters with less audio than this have embeddings too noisy to compare (a 1 s "já" scored 0.15 against
 # its own speaker's 80 s cluster); they are attached to the most similar reliable cluster instead.
 MIN_RELIABLE_S = 4.0
-# Two clusters whose whole-audio embeddings are at least this similar are one voice. With TitaNet on real
+# Two clusters whose whole-audio embeddings are at least this similar are one voice. With ERes2Net on real
 # recordings of 1-4 speakers, every value from 0.6 to 0.8 produced the exact speaker count with purity
 # 1.00; 0.7 sits in the middle of that range.
 MERGE_SIMILARITY = 0.7

@@ -432,7 +432,7 @@ export const en: Record<TranslationKey, string> = {
   'app.import': 'Imported file',
   // ---- diarization / speakers ----
   'settings.engine.diarize': 'Separate speakers in system audio',
-  'settings.engine.diarizeHint': 'After a recording, Fundarritari analyses the other participants\' voices and labels each of them (Participant 1, 2, 3 …). Click a speaker in the transcript to give them a name. Needs a ~110 MB extra download.',
+  'settings.engine.diarizeHint': 'After a recording, Fundarritari analyses the other participants\' voices and labels each of them (Participant 1, 2, 3 …). Click a speaker in the transcript to give them a name. Needs a ~40 MB extra download.',
   'summary.progress.diarize': 'Identifying speakers…',
   'speaker.participant': 'Participant {n}',
   'onb.engine.localNote': 'Default model: {model} ({gb} GB). It is downloaded automatically before the first recording.',
