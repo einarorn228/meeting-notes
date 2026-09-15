@@ -14,8 +14,9 @@ import queue
 import threading
 import time
 import uuid
+from collections import deque
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Literal, Optional, Sequence
+from typing import Callable, Deque, Dict, List, Literal, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -43,6 +44,14 @@ class StreamingOptions:
     gap_tolerance_ms: int = 250
     vad_lead_in_s: float = 0.3
     beam_size: int = 5
+    # Batching when the worker is behind. Whisper always processes a 30 s window, so a short cut costs almost
+    # as much as a long one: on a 4-thread CPU with large-v3 and real Icelandic speech, 3 s took 5.3 s
+    # (slower than real time) while 22 s took 9.1 s (2.4x faster than real time). Queued cuts of the same
+    # channel are therefore transcribed together, up to this much audio, with a short silence between.
+    max_batch_s: float = 22.0
+    batch_gap_s: float = 0.3
+    # Cuts further apart than this on the timeline are not merged, so one line never spans a long break.
+    merge_window_s: float = 60.0
 
     def samples(self, seconds: float) -> int:
         return int(round(seconds * self.sample_rate))
@@ -319,6 +328,9 @@ class _ChannelState:
     generation: int = 0  # bumped on every final cut; partials from older generations are skipped
     partial_pending: bool = False
     lock: threading.Lock = field(default_factory=threading.Lock)
+    # Final cuts announced but not yet transcribed. The worker takes as many contiguous ones as fit in one
+    # call, so a backlog shrinks instead of growing (see StreamingOptions.max_batch_s).
+    queue: Deque[Tuple[Cut, str]] = field(default_factory=deque)
 
 
 class StreamingSession:
@@ -413,12 +425,13 @@ class StreamingSession:
     def _dispatch(self, channel: str, state: _ChannelState, cuts: List[Cut]) -> None:
         for cut in cuts:
             if cut.kind == "final":
+                seg_id = uuid.uuid4().hex
                 with state.lock:
                     state.generation += 1
-                seg_id = uuid.uuid4().hex
+                    state.queue.append((cut, seg_id))
                 self._worker.submit(
                     Job(
-                        run=lambda cut=cut, channel=channel, seg_id=seg_id: self._transcribe_final(channel, cut, seg_id),
+                        run=lambda channel=channel, state=state: self._transcribe_queued(channel, state),
                         description=f"segment {channel} {cut.start:.2f}-{cut.end:.2f}",
                         session_id=self.session_id,
                     )
@@ -457,6 +470,58 @@ class StreamingSession:
         )
         text = finalize_text(result.text, result.avg_logprob, result.no_speech_prob, self.vocabulary)
         return text, float(result.avg_logprob), float(result.no_speech_prob)
+
+    def _take_batch(self, state: _ChannelState) -> List[Tuple[Cut, str]]:
+        """Pop the next cut and every queued cut behind it that fits in one model call.
+
+        When the machine keeps up the queue holds one cut and this is a plain pop. When it is behind, the
+        cuts waiting are the same speaker's next sentences: transcribing them together costs about one call
+        instead of one per sentence, which is what turns a growing backlog into a shrinking one.
+        """
+        opts = self.opts
+        with state.lock:
+            if not state.queue:
+                return []
+            batch = [state.queue.popleft()]
+            audio_s = len(batch[0][0].audio) / opts.sample_rate
+            while state.queue:
+                nxt, _ = state.queue[0]
+                nxt_s = len(nxt.audio) / opts.sample_rate
+                if audio_s + opts.batch_gap_s + nxt_s > opts.max_batch_s:
+                    break
+                if nxt.start - batch[-1][0].end > opts.merge_window_s:
+                    break
+                batch.append(state.queue.popleft())
+                audio_s += opts.batch_gap_s + nxt_s
+        return batch
+
+    def _transcribe_queued(self, channel: str, state: _ChannelState) -> None:
+        batch = self._take_batch(state)
+        if not batch:
+            return  # already transcribed as part of an earlier batch
+        if len(batch) == 1:
+            cut, seg_id = batch[0]
+            self._transcribe_final(channel, cut, seg_id)
+            return
+        gap = np.zeros(self.opts.samples(self.opts.batch_gap_s), dtype=np.float32)
+        pieces: List[np.ndarray] = []
+        for i, (cut, _) in enumerate(batch):
+            if i:
+                pieces.append(gap)
+            pieces.append(cut.audio)
+        merged = Cut(kind="final", start=batch[0][0].start, end=batch[-1][0].end, audio=np.concatenate(pieces))
+        log.info(
+            "worker is behind: transcribing %d queued cuts on %s together (%.1f s, %.2f-%.2f)",
+            len(batch), channel, len(merged.audio) / self.opts.sample_rate, merged.start, merged.end,
+        )
+        # The text lands on the first placeholder; the rest are closed. Whether the batch succeeds or not,
+        # every announced id must come back, or the app is left showing work that will never finish.
+        first_id = batch[0][1]
+        try:
+            self._transcribe_final(channel, merged, first_id)
+        finally:
+            for cut, seg_id in batch[1:]:
+                self._emit_segment(channel, cut, seg_id, "", 0.0, 1.0)
 
     def _transcribe_final(self, channel: str, cut: Cut, seg_id: str = "") -> None:
         try:

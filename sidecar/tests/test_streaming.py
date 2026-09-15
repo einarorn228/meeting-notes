@@ -260,3 +260,64 @@ def test_a_failing_segment_still_closes_its_placeholder(sink: RecordingSink):
         assert any(e["type"] == "error" for e in sink.events), "the failure is still reported"
     finally:
         worker.stop()
+
+
+def test_queued_cuts_are_transcribed_together_when_the_worker_is_behind(sink: RecordingSink):
+    """A large model on a CPU is slower than speech, and Whisper's cost per call is nearly flat, so a backlog
+    of short cuts must be merged into few calls or it only ever grows. Measured: 3 s of speech cost 4.9 s,
+    11 s cost 6.4 s - the same backlog transcribed in one call instead of four finishes in a fraction of it."""
+    engine = FakeEngine(delay=0.6)  # slow enough that every cut of the utterance is queued behind the first
+    worker = TranscriptionWorker(sink).start()
+    try:
+        session = StreamingSession("s7", language="is", channels=["mic"], vocabulary=[], partials=False,
+                                   punctuated=False, engine=engine, worker=worker, emit=sink)
+        # Four sentences separated by pauses long enough to cut on.
+        audio = np.concatenate([silence(0.3)] + [np.concatenate([speech(1.5), silence(0.9)]) for _ in range(4)])
+        session.feed("mic", 0, audio)
+        session.stop()
+        sink.wait_for(lambda e: e["type"] == "stopped", timeout=20)
+
+        announced = sink.of_type("pending")
+        assert len(announced) == 4, [e["start"] for e in announced]
+        assert _unclosed(sink) == [], "merged-away cuts must still close their placeholders"
+        assert len(engine.calls) < 4, f"the backlog was transcribed cut by cut: {len(engine.calls)} calls"
+        merged = [c for c in engine.calls if c["seconds"] > 2.5]
+        assert merged, "the cuts waiting behind the first one were transcribed together"
+        texts = [e for e in sink.of_type("segment") if e["text"]]
+        # The merged text lands on the first placeholder and spans the whole batch on the timeline.
+        assert any(e["end"] - e["start"] > 2.5 for e in texts), [(e["start"], e["end"]) for e in texts]
+    finally:
+        worker.stop()
+
+
+def test_cuts_are_not_merged_when_the_worker_keeps_up(sink: RecordingSink):
+    engine = FakeEngine()  # instant
+    worker = TranscriptionWorker(sink).start()
+    try:
+        session = StreamingSession("s8", language="is", channels=["mic"], vocabulary=[], partials=False,
+                                   punctuated=False, engine=engine, worker=worker, emit=sink)
+        for i in range(3):
+            session.feed("mic", i * 2500, np.concatenate([speech(1.5), silence(1.0)]))
+            worker.wait_idle(5)  # each cut is transcribed before the next arrives, like a fast machine
+        session.stop()
+        sink.wait_for(lambda e: e["type"] == "stopped", timeout=10)
+        assert len(engine.calls) == len(sink.of_type("pending")) == 3
+        assert all(c["seconds"] < 2.5 for c in engine.calls), "nothing was merged: there was never a backlog"
+    finally:
+        worker.stop()
+
+
+def test_a_batch_never_exceeds_one_model_window(sink: RecordingSink):
+    """Whisper handles 30 s per call; the batch cap keeps merged audio (with its gaps) well inside that."""
+    from fundarritari_stt.streaming import Cut, _ChannelState, ChannelStream, StreamingOptions
+
+    opts = StreamingOptions(max_batch_s=10.0, batch_gap_s=0.5)
+    session = StreamingSession("s9", language="is", channels=["mic"], vocabulary=[], partials=False,
+                               punctuated=False, engine=FakeEngine(), worker=TranscriptionWorker(sink), emit=sink, opts=opts)
+    state = _ChannelState(stream=ChannelStream(opts))
+    for i in range(6):  # six 3 s cuts = 18 s of speech queued
+        state.queue.append((Cut(kind="final", start=i * 4.0, end=i * 4.0 + 3.0, audio=speech(3.0)), f"id{i}"))
+    first = session._take_batch(state)
+    assert [sid for _, sid in first] == ["id0", "id1", "id2"], "3 + 0.5 + 3 + 0.5 + 3 = 10 s fits; a fourth would not"
+    assert len(session._take_batch(state)) == 3
+    assert session._take_batch(state) == []

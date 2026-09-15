@@ -156,6 +156,11 @@ export class RecordingSession extends EventEmitter {
     return this.meeting
   }
 
+  /** Cuts announced by the engine that have no text yet (for a view that opens mid-recording). */
+  getPending(): PendingSegment[] {
+    return [...this.pending]
+  }
+
   private addSegment(seg: EngineSegment): void {
     const s = toSegment(seg.id ?? randomUUID(), seg)
     // Keep transcript ordered by start time (channels arrive independently).

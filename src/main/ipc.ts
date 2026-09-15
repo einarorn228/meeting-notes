@@ -311,6 +311,17 @@ export function registerIpc(ctx: AppContext): void {
   })
   h('meetings:importAudio', () => importAudioFile(ctx))
   h('meetings:retranscribe', (_e, id: string, opts) => retranscribe(id, opts))
+  h('recording:pending', () => (session ? { meetingId: session.meetingId, items: session.getPending() } : null))
+  h('meetings:rediarize', async (_e, id: string, speakers?: number) => {
+    const progress = (stage: string, progress?: number): void => broadcast('ai:progress', { meetingId: id, stage, progress })
+    try {
+      const m = await diarizeMeeting(id, progress, { speakers, force: true })
+      broadcast('meeting:updated', { meetingId: id })
+      return m
+    } finally {
+      progress('done', 1)
+    }
+  })
 
   h('ai:summarize', (_e, id: string, templateId?: string) => summarizeMeeting(id, templateId, (stage, progress) => broadcast('ai:progress', { meetingId: id, stage, progress })).then((s) => {
     broadcast('meeting:updated', { meetingId: id })

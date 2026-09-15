@@ -9,6 +9,7 @@ import type {
   MainEvents,
   Meeting,
   MeetingListItem,
+  PendingSegment,
   RecordingState,
   SearchResult,
   Settings,
@@ -46,6 +47,10 @@ export interface FundarritariApi {
   getAudioUrl(meetingId: string): Promise<string | null>
   importAudioFile(): Promise<{ meetingId: string } | null>
   retranscribe(meetingId: string, opts?: { engine?: string; language?: string }): Promise<void>
+  /** Speech queued for transcription in the active recording, if any - so a view opened mid-recording can show it. */
+  getPendingSegments(): Promise<{ meetingId: string; items: PendingSegment[] } | null>
+  /** Re-run speaker separation on the remote channel; `speakers` fixes how many people were on the line. */
+  rediarize(meetingId: string, speakers?: number): Promise<Meeting | null>
 
   // ---- AI ----
   summarize(meetingId: string, templateId?: string): Promise<Summary>
@@ -120,6 +125,8 @@ const api: FundarritariApi = {
   getAudioUrl: (id) => invoke('meetings:audioUrl', id),
   importAudioFile: () => invoke('meetings:importAudio'),
   retranscribe: (id, opts) => invoke('meetings:retranscribe', id, opts),
+  getPendingSegments: () => invoke('recording:pending'),
+  rediarize: (id, speakers) => invoke('meetings:rediarize', id, speakers),
 
   summarize: (meetingId, templateId) => invoke('ai:summarize', meetingId, templateId),
   punctuate: (meetingId) => invoke('ai:punctuate', meetingId),

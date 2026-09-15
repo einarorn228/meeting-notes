@@ -46,9 +46,16 @@ export function needsDiarization(m: Meeting): boolean {
   return m.segments.some((s) => s.channel === 'system' && (s.speaker === 'others' || s.speaker === 'system'))
 }
 
-export async function diarizeMeeting(meetingId: string, progress: (stage: string, p?: number) => void): Promise<Meeting | null> {
+export interface DiarizeOptions {
+  /** How many people spoke on the remote channel, when the user knows. Clustering then cannot invent more. */
+  speakers?: number
+  /** Re-run even if every remote segment already carries a speaker label. */
+  force?: boolean
+}
+
+export async function diarizeMeeting(meetingId: string, progress: (stage: string, p?: number) => void, opts: DiarizeOptions = {}): Promise<Meeting | null> {
   const m = loadMeeting(meetingId)
-  if (!m || !needsDiarization(m)) return m
+  if (!m || (!opts.force && !needsDiarization(m))) return m
   const path = audioPath(meetingId)
   if (!existsSync(path)) return m
   const s = getSettings()
@@ -72,7 +79,7 @@ export async function diarizeMeeting(meetingId: string, progress: (stage: string
     }
     sidecar.on('event', listener)
     try {
-      sidecar.send({ type: 'diarize_file', request_id: requestId, path, channel: 1, models_dir: modelsDir(), threshold: 0.55 })
+      sidecar.send({ type: 'diarize_file', request_id: requestId, path, channel: 1, models_dir: modelsDir(), threshold: 0.55, num_speakers: opts.speakers && opts.speakers > 0 ? Math.round(opts.speakers) : -1 })
     } catch (e) {
       cleanup()
       reject(e)
@@ -86,6 +93,11 @@ export async function diarizeMeeting(meetingId: string, progress: (stage: string
   const latest = loadMeeting(meetingId) ?? m
   const { segments, speakers } = assignSpeakers(latest.segments, diar, (n) => `Þátttakandi ${n}`)
   const names = { ...latest.speakerNames }
+  if (opts.force) {
+    // Cluster numbers are not stable between runs, so labels from the previous run would point at the
+    // wrong voices. Names the user typed for a cluster are kept only if that cluster still exists.
+    for (const key of Object.keys(names)) if (/^spk\d+$/.test(key) && !(key in speakers)) delete names[key]
+  }
   for (const [key, label] of Object.entries(speakers)) if (!names[key]) names[key] = label
   const updated = saveMeeting({ ...latest, segments, speakerNames: names })
   progress('diarize', 1)

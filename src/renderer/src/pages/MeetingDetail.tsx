@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { ChatMessage, ExportRequest, Meeting, Segment, SummaryTemplate } from '@shared/types'
+import type { ChatMessage, ExportRequest, Meeting, PendingSegment, Segment, SummaryTemplate } from '@shared/types'
 import { LOCAL_MODELS } from '@shared/types'
 import { api } from '@/api'
 import { useI18n } from '@/i18n'
@@ -37,6 +37,10 @@ export function MeetingPage({ id, initialTab, initialTime }: Props): ReactNode {
   const [confirmDeleteAudio, setConfirmDeleteAudio] = useState(false)
   const [rename, setRename] = useState<{ key: string; label: string } | null>(null)
   const [retrans, setRetrans] = useState(false)
+  const [speakersDialog, setSpeakersDialog] = useState(false)
+  // Speech the engine has queued but not written out yet. Without this the transcript tab of a meeting that
+  // is still recording (or draining after stop) looks finished while text is still on its way.
+  const [pending, setPending] = useState<PendingSegment[]>([])
   const audioRef = useRef<HTMLAudioElement>(null)
   const titleTimer = useRef<number | undefined>(undefined)
 
@@ -54,7 +58,11 @@ export function MeetingPage({ id, initialTab, initialTime }: Props): ReactNode {
 
   useEffect(() => {
     void load()
-  }, [load])
+    void api
+      .getPendingSegments()
+      .then((p) => setPending(p && p.meetingId === id ? p.items : []))
+      .catch(() => {})
+  }, [load, id])
 
   useEvent('meeting:updated', ({ meetingId }) => {
     if (meetingId === id) void load()
@@ -66,6 +74,9 @@ export function MeetingPage({ id, initialTab, initialTime }: Props): ReactNode {
       const segs = m.segments.filter((s) => s.id !== segment.id).concat(segment).sort((a, b) => a.start - b.start)
       return { ...m, segments: segs }
     })
+  })
+  useEvent('transcript:pending', ({ meetingId, items }) => {
+    if (meetingId === id) setPending(items)
   })
   useEvent('ai:progress', ({ meetingId, stage, progress: p }) => {
     if (meetingId !== id) return
@@ -229,9 +240,11 @@ export function MeetingPage({ id, initialTab, initialTime }: Props): ReactNode {
           onSeek={audioUrl ? seek : undefined}
           onRename={(key, label) => setRename({ key, label })}
           onRetranscribe={() => setRetrans(true)}
+          onSpeakers={meeting.audioFile ? () => setSpeakersDialog(true) : undefined}
           needsPunct={!!needsPunct}
           busy={!!progress}
           onPunctuated={load}
+          pending={pending}
         />
       )}
       {tab === 'notes' && (
@@ -306,6 +319,27 @@ export function MeetingPage({ id, initialTab, initialTime }: Props): ReactNode {
               setMeeting(m)
             }
             setRename(null)
+          }}
+        />
+      )}
+            {speakersDialog && (
+        <PromptDialog
+          title={t('transcript.speakersTitle')}
+          hint={t('transcript.speakersHint')}
+          initial=""
+          placeholder="2"
+          confirmLabel={t('transcript.speakersStart')}
+          onCancel={() => setSpeakersDialog(false)}
+          onSubmit={async (value) => {
+            const n = parseInt(value, 10)
+            setSpeakersDialog(false)
+            toast(t('transcript.speakersStarted'), 'info')
+            try {
+              await api.rediarize(id, Number.isFinite(n) && n > 0 ? n : undefined)
+              await load()
+            } catch (err) {
+              toast(t('toast.error', { msg: errorMessage(err) }), 'error')
+            }
           }}
         />
       )}
@@ -433,7 +467,7 @@ function SummaryTab({ meeting, onUpdated, busy }: { meeting: Meeting; onUpdated:
   )
 }
 
-function TranscriptTab({ meeting, activeId, onSeek, onRename, onRetranscribe, needsPunct, busy, onPunctuated }: { meeting: Meeting; activeId?: string; onSeek?: (t: number) => void; onRename: (key: string, label: string) => void; onRetranscribe: () => void; needsPunct: boolean; busy: boolean; onPunctuated: () => Promise<void> }): ReactNode {
+function TranscriptTab({ meeting, activeId, onSeek, onRename, onRetranscribe, onSpeakers, needsPunct, busy, onPunctuated, pending }: { meeting: Meeting; activeId?: string; onSeek?: (t: number) => void; onRename: (key: string, label: string) => void; onRetranscribe: () => void; onSpeakers?: () => void; needsPunct: boolean; busy: boolean; onPunctuated: () => Promise<void>; pending?: PendingSegment[] }): ReactNode {
   const { t } = useI18n()
   const { settings } = useSettings()
   const { toast } = useToast()
@@ -480,6 +514,11 @@ function TranscriptTab({ meeting, activeId, onSeek, onRename, onRetranscribe, ne
           <Button icon="copy" onClick={copyAll} disabled={meeting.segments.length === 0}>
             {t('transcript.copyAll')}
           </Button>
+          {onSpeakers && meeting.segments.some((seg) => seg.channel === 'system') && (
+            <Button icon="tag" onClick={onSpeakers} disabled={busy} title={t('transcript.speakersHint')}>
+              {t('transcript.speakers')}
+            </Button>
+          )}
           <Button icon="refresh" onClick={onRetranscribe} disabled={!meeting.audioFile || busy}>
             {t('transcript.retranscribe')}
           </Button>
@@ -499,6 +538,7 @@ function TranscriptTab({ meeting, activeId, onSeek, onRename, onRetranscribe, ne
             await onPunctuated()
           }}
           query={query}
+          pending={query ? [] : pending}
           emptyText={
             <div>
               <div>{t('transcript.empty')}</div>
