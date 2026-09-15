@@ -439,7 +439,7 @@ export const is = {
   'app.import': 'Innflutt skrá',
   // ---- diarization / speakers ----
   'settings.engine.diarize': 'Aðgreina ræðumenn í kerfishljóði',
-  'settings.engine.diarizeHint': 'Eftir upptöku greinir Fundarritari raddir hinna þátttakendanna og merkir hvern þeirra sérstaklega (Þátttakandi 1, 2, 3 …). Nöfnin má svo laga með því að smella á ræðumann í uppskriftinni. Þarf ~40 MB aukaniðurhal.',
+  'settings.engine.diarizeHint': 'Eftir upptöku greinir Fundarritari raddir hinna þátttakendanna og merkir hvern þeirra sérstaklega (Þátttakandi 1, 2, 3 …). Nöfnin má svo laga með því að smella á ræðumann í uppskriftinni. Þarf ~110 MB aukaniðurhal.',
   'summary.progress.diarize': 'Greini ræðumenn…',
   'speaker.participant': 'Þátttakandi {n}',
   'onb.engine.localNote': 'Sjálfgefið líkan: {model} ({gb} GB). Það er sótt sjálfkrafa við fyrstu upptöku.',
