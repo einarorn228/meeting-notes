@@ -85,6 +85,16 @@ stöðuna: *„Sæki líkan…“* → *„Hleð líkani…“* → **„Tilbúi
 
 ![Upptökuglugginn](img/09-upptaka.png)
 
+
+**Textinn kemur með smá töf – það er eðlilegt.** Forritið bíður eftir að þú ljúkir setningunni (það þarf heila
+setningu til að skrifa rétta íslensku) og skrifar hana svo upp. Á meðan sérðu línu með tímanum, nafninu þínu og
+þremur punktum sem hreyfast – það þýðir *„þetta heyrðist og er í vinnslu“*. Þegar textinn er tilbúinn kemur hann
+í staðinn fyrir punktana.
+
+Á tölvu án skjákorts tekur uppskriftin lengri tíma en talið sjálft. Ef margar línur safnast upp birtist
+*„Talgreining hefur ekki undan – textinn klárast eftir fundinn“*. Fundurinn tapast ekki: forritið klárar
+uppskriftina eftir að þú stöðvar upptökuna.
+
 ## 5. Eftir fundinn
 
 Þegar þú stöðvar opnast fundurinn sjálfkrafa. Forritið vinnur úr honum í nokkrar mínútur (staðan sést efst):
@@ -139,6 +149,8 @@ Flipar fundarins:
   Smelltu á hann þegar þér hentar. Forritið lokast, uppfærir sig þegjandi á nokkrum sekúndum og opnast aftur
   sjálft – þú þarft ekki að svara neinum uppsetningarglugga. Öll gögnin þín haldast óbreytt.
 - Þú getur líka leitað sjálf(ur): **Stillingar → Almennt → Uppfærslur → Leita að uppfærslum**.
+- Viltu ráða þessu alveg sjálf(ur)? Slökktu á **Uppfæra sjálfkrafa** á sama stað. Þá leitar forritið aldrei
+  af sjálfu sér, en hnappurinn *Leita að uppfærslum* virkar áfram þegar þú vilt.
 - Ef upptaka er í gangi neitar forritið að endurræsa sig. Stöðvaðu upptökuna fyrst.
 
 Á Mac uppfærir forritið sig ekki sjálft; þar lætur það þig vita og þú sækir nýju útgáfuna með einum smelli.

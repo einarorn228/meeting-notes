@@ -5,7 +5,7 @@
  */
 import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
-import type { ChannelId, Highlight, Meeting, RecordingState, Segment } from '../shared/types'
+import type { ChannelId, Highlight, Meeting, PendingSegment, RecordingState, Segment } from '../shared/types'
 import { getSettings } from './settings'
 import { audioPath, newId, saveMeeting, updateMeeting, loadMeeting } from './store'
 import { createEngine } from './transcription'
@@ -18,6 +18,7 @@ export interface SessionEvents {
   state: (s: RecordingState) => void
   segment: (meetingId: string, seg: Segment) => void
   partial: (meetingId: string, channel: ChannelId, text: string, start: number) => void
+  pending: (meetingId: string, items: PendingSegment[]) => void
   error: (meetingId: string | undefined, message: string) => void
   finished: (meetingId: string) => void
 }
@@ -35,6 +36,8 @@ export class RecordingSession extends EventEmitter {
   private lastLoud: Record<ChannelId, number> = { mic: Date.now(), system: Date.now() }
   private seen: Record<ChannelId, boolean> = { mic: false, system: false }
   private engineStatus = 'Ræsi…'
+  /** Speech that has been captured and queued, but has no text yet. Shown as placeholders in the transcript. */
+  private pending: PendingSegment[] = []
   private ticker: NodeJS.Timeout
   private saveTimer: NodeJS.Timeout | null = null
   private stopping = false
@@ -82,6 +85,16 @@ export class RecordingSession extends EventEmitter {
         {
           onSegment: (seg) => this.addSegment(seg),
           onPartial: (ch, text, start) => this.emit('partial', this.meetingId, ch, text, start),
+          onPending: ({ id, channel, start, end }) => {
+            this.pending.push({ id, channel, start, end })
+            this.emit('pending', this.meetingId, [...this.pending])
+          },
+          onPendingDone: (id) => {
+            const i = this.pending.findIndex((p) => p.id === id)
+            if (i < 0) return
+            this.pending.splice(i, 1)
+            this.emit('pending', this.meetingId, [...this.pending])
+          },
           onStatus: (st) => {
             this.engineStatus = st
             this.emitState()
@@ -144,7 +157,7 @@ export class RecordingSession extends EventEmitter {
   }
 
   private addSegment(seg: EngineSegment): void {
-    const s = toSegment(randomUUID(), seg)
+    const s = toSegment(seg.id ?? randomUUID(), seg)
     // Keep transcript ordered by start time (channels arrive independently).
     const segs = this.meeting.segments
     let i = segs.length
@@ -215,6 +228,11 @@ export class RecordingSession extends EventEmitter {
       await this.engine?.stop()
     } catch (e) {
       this.emit('error', this.meetingId, String(e))
+    }
+    // Whatever is still queued will never be shown now; the meeting view takes over from here.
+    if (this.pending.length) {
+      this.pending = []
+      this.emit('pending', this.meetingId, [])
     }
     // Reload in case the renderer saved notes/title while we were recording (store cache is shared).
     const latest = loadMeeting(this.meetingId)

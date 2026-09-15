@@ -83,6 +83,7 @@ function GeneralSection(): ReactNode {
 function UpdateSection(): ReactNode {
   const { t } = useI18n()
   const status = useUpdateStatus()
+  const { settings, update } = useSettings()
   const [checking, setChecking] = useState(false)
   const check = async (): Promise<void> => {
     setChecking(true)
@@ -96,6 +97,12 @@ function UpdateSection(): ReactNode {
     <Card title={t('update.title')}>
       <div className="muted small">{t('update.current', { version: status?.currentVersion ?? '…' })}</div>
       <p className="muted small">{status && !status.canSelfUpdate ? t('update.manualHint') : t('update.autoHint')}</p>
+      <Toggle
+        checked={settings.updates.auto}
+        onChange={(v) => update({ updates: { ...settings.updates, auto: v } })}
+        label={t('update.auto')}
+        hint={t('update.autoToggleHint')}
+      />
       {status?.state === 'up-to-date' && <Alert tone="success">{t('update.upToDate')}</Alert>}
       {status?.state === 'error' && <Alert tone="danger">{t('update.error', { msg: status.message ?? '' })}</Alert>}
       <div className="row gap-sm">

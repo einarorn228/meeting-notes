@@ -29,7 +29,8 @@ object (an *event*). stderr is free-form logging. Audio is PCM16 little-endian m
 | `models` | `installed` (list of ids) |
 | `model_downloaded` | `model_id` |
 | `model_loaded` | `model_id`, `device`, `compute_type`, `load_seconds` |
-| `segment` | `session_id` or `request_id`, `channel`, `start` (s), `end` (s), `text`, `partial` (bool), `avg_logprob`, `no_speech_prob` |
+| `pending` | `session_id`, `channel`, `seg_id`, `start` (s), `end` (s), `queue` (jobs waiting) - a cut was queued; its text follows in a `segment` with the same `seg_id` |
+| `segment` | `session_id` or `request_id`, `channel`, `seg_id` (streaming only), `start` (s), `end` (s), `text` (empty = nothing was said, closes the `pending`), `partial` (bool), `avg_logprob`, `no_speech_prob` |
 | `partial` | `session_id`, `channel`, `start`, `text` |
 | `stopped` | `session_id` |
 | `file_done` | `request_id`, `duration` |
@@ -48,6 +49,11 @@ which also avoids Whisper hallucinations on silence. If `partials` is on and spe
 6 s, emit a `partial` with the transcription of the ongoing region at most every 4 s. Transcription runs on a single
 worker thread; VAD runs on the ingest thread. The Icelandic fine-tuned models emit lowercase text without
 punctuation and unreliable in-segment timestamps, hence `without_timestamps=True` and VAD-driven segment timing.
+
+Every queued cut is announced with a `pending` event carrying a `seg_id` before it is transcribed, and exactly
+one `segment` with that `seg_id` follows - with empty text if nothing usable was said or the job failed. A client
+can therefore show a placeholder from the moment someone stops speaking, which matters because transcription of a
+large model on a CPU takes several times longer than the speech itself.
 
 Hallucination guards: drop segments whose `no_speech_prob` > 0.85 and `avg_logprob` < -1.0, drop segments
 consisting of the same token repeated > 4 times, drop empty text.

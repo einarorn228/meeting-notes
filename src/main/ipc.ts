@@ -3,7 +3,7 @@ import { copyFileSync, existsSync } from 'node:fs'
 import { basename, extname, join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
-import type { ChannelId, ExportRequest, MainEventName, MainEvents, Meeting, RecordingState, Settings } from '../shared/types'
+import type { ChannelId, ExportRequest, MainEventName, MainEvents, Meeting, PendingSegment, RecordingState, Settings } from '../shared/types'
 import { LOCAL_MODELS } from '../shared/types'
 import { chatWithAllMeetings, chatWithMeeting, punctuateMeeting, summarizeMeeting } from './ai/notes'
 import { diarizeMeeting } from './diarize'
@@ -49,6 +49,7 @@ export async function startRecording(ctx: AppContext, opts: { title?: string; la
   s.on('state', (st: RecordingState) => broadcast('recording:state', st))
   s.on('segment', (meetingId: string, segment) => broadcast('transcript:segment', { meetingId, segment }))
   s.on('partial', (meetingId: string, channel: ChannelId, text: string, start: number) => broadcast('transcript:partial', { meetingId, channel, text, start }))
+  s.on('pending', (meetingId: string, items: PendingSegment[]) => broadcast('transcript:pending', { meetingId, items }))
   s.on('error', (meetingId: string | undefined, message: string) => broadcast('transcript:error', { meetingId, message }))
   broadcast('meetings:changed', undefined)
   await s.start()

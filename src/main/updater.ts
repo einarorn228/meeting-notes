@@ -10,6 +10,7 @@ import { app } from 'electron'
 // electron-updater is CommonJS; the default import keeps this working in the ESM main bundle.
 import electronUpdater from 'electron-updater'
 import type { UpdateStatus } from '../shared/types'
+import { getSettings, onSettingsChange } from './settings'
 
 const { autoUpdater } = electronUpdater
 
@@ -23,6 +24,16 @@ export function canSelfUpdate(platform: NodeJS.Platform = process.platform, isAp
 }
 
 type Emit = (status: UpdateStatus) => void
+
+/** Automatic checking/downloading is a setting; pressing "check for updates" always works regardless. */
+export function autoUpdatesEnabled(): boolean {
+  try {
+    return getSettings().updates.auto !== false
+  } catch {
+    // Settings unreadable (first run, corrupt file): staying current is the safer default for a tester.
+    return true
+  }
+}
 
 let status: UpdateStatus = {
   state: 'idle',
@@ -79,13 +90,24 @@ export function initUpdater(onStatus: Emit, isBusy: () => boolean): void {
     userInitiated = false
     // A release being uploaded, or a flaky network, should heal itself rather than wait for tomorrow.
     if (retryTimer) clearTimeout(retryTimer)
-    retryTimer = setTimeout(() => void checkForUpdates(false), 15 * 60 * 1000)
+    if (autoUpdatesEnabled()) retryTimer = setTimeout(() => void checkForUpdates(false), 15 * 60 * 1000)
   })
 
   installGuard = isBusy
-  // A check on launch, then daily for the long-running tray sessions this app is designed for.
-  setTimeout(() => void checkForUpdates(false), 8000)
-  setInterval(() => void checkForUpdates(false), 24 * 3600 * 1000)
+  // A check on launch, then daily for the long-running tray sessions this app is designed for - both only
+  // while automatic updates are switched on.
+  const autoCheck = (): void => {
+    if (autoUpdatesEnabled()) void checkForUpdates(false)
+  }
+  setTimeout(autoCheck, 8000)
+  setInterval(autoCheck, 24 * 3600 * 1000)
+  // Switching automatic updates back on should not mean waiting until tomorrow for the next check.
+  let wasEnabled = autoUpdatesEnabled()
+  onSettingsChange((s) => {
+    const enabled = s.updates?.auto !== false
+    if (enabled && !wasEnabled) autoCheck()
+    wasEnabled = enabled
+  })
 }
 
 let installGuard: () => boolean = () => false

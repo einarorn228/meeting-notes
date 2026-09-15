@@ -187,6 +187,8 @@ export const is = {
   'summary.progress.transcribe': 'Skrifa upp…',
   'summary.progress.generic': 'Vinn úr…',
 
+  'transcript.writing': 'Skrifa upp…',
+  'transcript.queued': 'Bíður…',
   'transcript.search': 'Leita í uppskrift…',
   'transcript.empty': 'Engin uppskrift',
   'transcript.emptyHint': 'Ekkert tal greindist í upptökunni, eða vinnslu er ekki lokið.',
@@ -455,6 +457,8 @@ export const is = {
   'update.error': 'Uppfærslan mistókst: {msg}',
   'update.manualHint': 'Þessi útgáfa uppfærir sig ekki sjálf. Sæktu nýja útgáfu af niðurhalssíðunni þegar hún birtist.',
   'update.autoHint': 'Appið leitar sjálfkrafa að uppfærslum og sækir þær í bakgrunni. Þú þarft aðeins að endurræsa þegar boðið er upp á það.',
+  'update.auto': 'Uppfæra sjálfkrafa',
+  'update.autoToggleHint': 'Slökkt: forritið leitar ekki að uppfærslum af sjálfu sér. Þú getur alltaf leitað handvirkt með hnappinum hér fyrir neðan.',
 
   'app.other': 'Annað'
 }

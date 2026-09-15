@@ -184,6 +184,8 @@ export const en: Record<TranslationKey, string> = {
   'summary.progress.transcribe': 'Transcribing…',
   'summary.progress.generic': 'Processing…',
 
+  'transcript.writing': 'Transcribing…',
+  'transcript.queued': 'Waiting…',
   'transcript.search': 'Search transcript…',
   'transcript.empty': 'No transcript',
   'transcript.emptyHint': 'No speech was detected in the recording, or processing is not finished.',
@@ -448,6 +450,8 @@ export const en: Record<TranslationKey, string> = {
   'update.error': 'Update failed: {msg}',
   'update.manualHint': 'This build cannot update itself. Download the new version from the releases page when one appears.',
   'update.autoHint': 'The app checks for updates and downloads them in the background. You only need to restart when prompted.',
+  'update.auto': 'Update automatically',
+  'update.autoToggleHint': 'Off: the app never checks on its own. You can always check by hand with the button below.',
 
   'app.other': 'Other'
 }

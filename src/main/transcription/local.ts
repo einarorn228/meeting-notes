@@ -4,11 +4,18 @@ import { getSettings } from '../settings'
 import { sidecar, type SidecarEvent } from './sidecar'
 import type { EngineCallbacks, EngineStartOptions, TranscriptionEngine } from './types'
 
+/** Queue depths at which the app starts and stops saying the machine cannot keep up with the talking. */
+const BACKLOG_WARN = 6
+const BACKLOG_OK = 2
+
 /** Local faster-whisper engine backed by the Python sidecar. */
 export class LocalEngine implements TranscriptionEngine {
   readonly id = 'local'
   private sessionId = ''
   private cb: EngineCallbacks | null = null
+  /** The status shown when everything is keeping up, so a warning can be taken back. */
+  private readyStatus = ''
+  private behind = false
   private listener: ((ev: SidecarEvent) => void) | null = null
 
   async start(opts: EngineStartOptions, cb: EngineCallbacks): Promise<void> {
@@ -21,9 +28,25 @@ export class LocalEngine implements TranscriptionEngine {
     this.listener = (ev) => {
       if (ev.session_id !== this.sessionId) return
       if (ev.type === 'segment') {
+        const id = ev.seg_id ? String(ev.seg_id) : undefined
+        // Close the placeholder first, and whether or not there is text: an empty segment means the cut held
+        // nothing worth keeping, and leaving its placeholder up would show work that never finishes.
+        if (id) cb.onPendingDone?.(id)
         const text = String(ev.text ?? '').trim()
         if (!text) return
-        cb.onSegment({ channel: ev.channel as ChannelId, start: Number(ev.start), end: Number(ev.end), text, confidence: typeof ev.avg_logprob === 'number' ? Math.exp(ev.avg_logprob) : undefined })
+        cb.onSegment({ id, channel: ev.channel as ChannelId, start: Number(ev.start), end: Number(ev.end), text, confidence: typeof ev.avg_logprob === 'number' ? Math.exp(ev.avg_logprob) : undefined })
+      } else if (ev.type === 'pending') {
+        const queue = Number(ev.queue ?? 1)
+        cb.onPending?.({ id: String(ev.seg_id), channel: ev.channel as ChannelId, start: Number(ev.start), end: Number(ev.end), queue })
+        // A large model on a CPU transcribes slower than people speak, so the queue can only grow during a
+        // long meeting. Saying so once beats letting the backlog pile up silently.
+        if (queue >= BACKLOG_WARN && !this.behind) {
+          this.behind = true
+          cb.onStatus('Talgreining hefur ekki undan – textinn klárast eftir fundinn')
+        } else if (queue <= BACKLOG_OK && this.behind) {
+          this.behind = false
+          cb.onStatus(this.readyStatus)
+        }
       } else if (ev.type === 'partial') {
         cb.onPartial(ev.channel as ChannelId, String(ev.text ?? ''), Number(ev.start))
       } else if (ev.type === 'finishing') {
@@ -45,7 +68,9 @@ export class LocalEngine implements TranscriptionEngine {
       punctuated: info.punctuated
     })
     const mi = sidecar.modelInfo
-    cb.onStatus(`Staðbundin talgreining (${info.label.split(' – ')[0]}, ${mi?.device ?? 'cpu'})`)
+    this.readyStatus = `Staðbundin talgreining (${info.label.split(' – ')[0]}, ${mi?.device ?? 'cpu'})`
+    this.behind = false
+    cb.onStatus(this.readyStatus)
   }
 
   pushAudio(channel: ChannelId, pcm: Int16Array, tMs: number): void {

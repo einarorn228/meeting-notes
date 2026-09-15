@@ -1,6 +1,8 @@
-import type { ChannelId, Language, Segment } from '../../shared/types'
+import type { ChannelId, Language, PendingSegment, Segment } from '../../shared/types'
 
 export interface EngineSegment {
+  /** Matches the id of the `onPending` announcement, when the engine makes one. */
+  id?: string
   channel: ChannelId
   start: number
   end: number
@@ -13,6 +15,10 @@ export interface EngineSegment {
 export interface EngineCallbacks {
   onSegment(seg: EngineSegment): void
   onPartial(channel: ChannelId, text: string, start: number): void
+  /** Speech was captured and queued; its text arrives later. Optional: only the local engine knows this. */
+  onPending?(pending: PendingSegment & { queue: number }): void
+  /** That queued cut is done - with text via onSegment, or with nothing at all. */
+  onPendingDone?(id: string): void
   onStatus(status: string): void
   onError(message: string, fatal?: boolean): void
 }

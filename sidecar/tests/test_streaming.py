@@ -176,7 +176,8 @@ def test_hallucinated_segments_are_dropped(sink: RecordingSink):
         session.feed("mic", 0, np.concatenate([silence(0.5), speech(2.0), silence(1.0)]))
         session.stop()
         sink.wait_for(lambda e: e["type"] == "stopped", timeout=10)
-        assert sink.of_type("segment") == []
+        assert _texts(sink) == [], "a hallucination must never reach the transcript"
+        assert _unclosed(sink) == [], "the dropped cut must still close its placeholder in the app"
         engine.text_fn = lambda audio: "eitthvað"
         engine.no_speech_prob, engine.avg_logprob = 0.95, -1.4
         session = StreamingSession("s4", language="is", channels=["mic"], vocabulary=[], partials=False,
@@ -184,7 +185,8 @@ def test_hallucinated_segments_are_dropped(sink: RecordingSink):
         session.feed("mic", 0, np.concatenate([silence(0.5), speech(2.0), silence(1.0)]))
         session.stop()
         sink.wait_for(lambda e: e["type"] == "stopped" and e["session_id"] == "s4", timeout=10)
-        assert sink.of_type("segment") == []
+        assert _texts(sink) == []
+        assert _unclosed(sink) == []
     finally:
         worker.stop()
 
@@ -206,3 +208,55 @@ def test_worker_reports_job_errors_and_keeps_running(sink: RecordingSink):
     errors = sink.of_type("error")
     assert len(errors) == 1 and "boom" in errors[0]["message"] and errors[0]["session_id"] == "s5"
     assert errors[0]["fatal"] is False
+
+
+def _texts(sink: RecordingSink) -> list:
+    """Segment texts that actually reached the transcript (empty ones only close a placeholder)."""
+    return [e["text"] for e in sink.of_type("segment") if e["text"]]
+
+
+def _unclosed(sink: RecordingSink) -> list:
+    """Announced cuts whose text (or lack of it) never came back."""
+    announced = [e["seg_id"] for e in sink.of_type("pending")]
+    closed = {e.get("seg_id") for e in sink.of_type("segment")}
+    return [i for i in announced if i not in closed]
+
+
+def test_every_announced_cut_is_closed(sink: RecordingSink):
+    """The app draws a placeholder per announced cut. One that is never closed is a spinner that never stops."""
+    engine = FakeEngine()
+    worker = TranscriptionWorker(sink).start()
+    try:
+        session = StreamingSession("s5", language="is", channels=["mic"], vocabulary=[], partials=False,
+                                   punctuated=False, engine=engine, worker=worker, emit=sink)
+        session.feed("mic", 0, np.concatenate([silence(0.5), speech(2.0), silence(1.0), speech(2.0), silence(1.0)]))
+        session.stop()
+        sink.wait_for(lambda e: e["type"] == "stopped", timeout=10)
+        announced = sink.of_type("pending")
+        assert len(announced) >= 2, "each cut is announced as soon as it is queued, before its text exists"
+        assert _unclosed(sink) == []
+        first = announced[0]
+        assert first["channel"] == "mic" and first["end"] > first["start"] and first["queue"] >= 1
+        # The announcement has to come first - that is the whole point of it.
+        assert sink.events.index(first) < sink.events.index(sink.of_type("segment")[0])
+    finally:
+        worker.stop()
+
+
+def test_a_failing_segment_still_closes_its_placeholder(sink: RecordingSink):
+    def boom(audio):
+        raise RuntimeError("backend died")
+
+    engine = FakeEngine(text_fn=boom)
+    worker = TranscriptionWorker(sink).start()
+    try:
+        session = StreamingSession("s6", language="is", channels=["mic"], vocabulary=[], partials=False,
+                                   punctuated=False, engine=engine, worker=worker, emit=sink)
+        session.feed("mic", 0, np.concatenate([silence(0.5), speech(2.0), silence(1.0)]))
+        session.stop()
+        sink.wait_for(lambda e: e["type"] == "stopped", timeout=10)
+        assert sink.of_type("pending"), "the cut was announced"
+        assert _unclosed(sink) == [], "a segment that raised must not leave the app waiting forever"
+        assert any(e["type"] == "error" for e in sink.events), "the failure is still reported"
+    finally:
+        worker.stop()

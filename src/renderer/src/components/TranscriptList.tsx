@@ -3,7 +3,7 @@
  * Speaker chips: channel 'mic' => "Ég", channel 'system' => "Aðrir" unless renamed via speakerNames.
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { ChannelId, Segment } from '@shared/types'
+import type { ChannelId, PendingSegment, Segment } from '@shared/types'
 import { mmss } from '@/utils/format'
 import { useI18n, type I18n } from '@/i18n'
 import { Icon } from './Icons'
@@ -51,12 +51,14 @@ export interface TranscriptListProps {
   onEdit?: (segmentId: string, text: string) => Promise<void> | void
   query?: string
   partials?: Partials
+  /** Live mode: speech that has been captured and queued but has no text yet. */
+  pending?: PendingSegment[]
   /** Live mode: keep scrolled to bottom unless the user scrolled up. */
   live?: boolean
   emptyText?: ReactNode
 }
 
-export function TranscriptList({ segments, speakerNames, activeId, onSeek, onSpeakerClick, onEdit, query, partials, live, emptyText }: TranscriptListProps): ReactNode {
+export function TranscriptList({ segments, speakerNames, activeId, onSeek, onSpeakerClick, onEdit, query, partials, pending, live, emptyText }: TranscriptListProps): ReactNode {
   const { t } = useI18n()
   const box = useRef<HTMLDivElement>(null)
   const [stuck, setStuck] = useState(true)
@@ -68,10 +70,13 @@ export function TranscriptList({ segments, speakerNames, activeId, onSeek, onSpe
     return (Object.keys(partials) as ChannelId[]).filter((c) => partials[c]?.text).map((c) => ({ channel: c, ...partials[c]! }))
   }, [partials])
 
+  // Oldest first, so the queue reads top to bottom like the rest of the transcript.
+  const pendingList = useMemo(() => [...(pending ?? [])].sort((a, b) => a.start - b.start), [pending])
+
   useEffect(() => {
     if (!live || !stuck || !box.current) return
     box.current.scrollTop = box.current.scrollHeight
-  }, [segments, partialList, live, stuck])
+  }, [segments, partialList, pendingList, live, stuck])
 
   useEffect(() => {
     if (!activeId || live || !box.current) return
@@ -102,7 +107,7 @@ export function TranscriptList({ segments, speakerNames, activeId, onSeek, onSpe
   return (
     <div className="transcript-wrap">
       <div className="transcript" ref={box} onScroll={onScroll}>
-        {segments.length === 0 && partialList.length === 0 && <div className="transcript-empty">{emptyText}</div>}
+        {segments.length === 0 && partialList.length === 0 && pendingList.length === 0 && <div className="transcript-empty">{emptyText}</div>}
         {segments.map((seg) => {
           const key = speakerKey(seg)
           const label = speakerLabel(seg.speaker, seg.channel, speakerNames, t)
@@ -165,6 +170,24 @@ export function TranscriptList({ segments, speakerNames, activeId, onSeek, onSpe
             <span className="seg-time">{mmss(p.start)}</span>
             <span className="chip chip-speaker">{speakerLabel(undefined, p.channel, speakerNames, t)}</span>
             <div className="seg-text">{p.text}</div>
+          </div>
+        ))}
+        {/* Heard but not yet written out. The wait is seconds, sometimes longer than the speech itself, so the
+            line appears the moment someone stops talking and fills in with the real text. */}
+        {pendingList.map((p, i) => (
+          <div key={`pending-${p.id}`} className={`seg seg-${p.channel} seg-pending ${i === 0 ? '' : 'waiting'}`}>
+            <span className="seg-time">{mmss(p.start)}</span>
+            <span className="chip chip-speaker">{speakerLabel(undefined, p.channel, speakerNames, t)}</span>
+            <div className="seg-text">
+              <span className="writing" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+              </span>
+              <span className="muted small">
+                {i === 0 ? t('transcript.writing') : t('transcript.queued')}
+              </span>
+            </div>
           </div>
         ))}
       </div>

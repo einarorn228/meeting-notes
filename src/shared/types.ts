@@ -111,6 +111,10 @@ export interface Settings {
   }
   hotkeys: { toggleRecording: string; markHighlight: string }
   storage: { keepAudio: boolean }
+  updates: {
+    /** Check for and download new versions on its own. Off means updates only happen when asked for. */
+    auto: boolean
+  }
   onboardingDone: boolean
   consentNotice: string
 }
@@ -126,6 +130,14 @@ export interface Segment {
   /** true while the segment may still change (partial result) */
   partial?: boolean
   confidence?: number
+}
+
+/** A cut of speech that has been queued for transcription but has no text yet. */
+export interface PendingSegment {
+  id: string
+  channel: ChannelId
+  start: number
+  end: number
 }
 
 export interface Highlight {
@@ -308,6 +320,7 @@ export const DEFAULT_SETTINGS: Settings = {
     notifyMinutesBefore: 1
   },
   hotkeys: { toggleRecording: 'CommandOrControl+Shift+R', markHighlight: 'CommandOrControl+Shift+H' },
+  updates: { auto: true },
   storage: { keepAudio: true },
   onboardingDone: false,
   consentNotice: 'Athugið: Þessi fundur er hljóðritaður og skrifaður niður sjálfkrafa með Fundarritara.'
@@ -330,6 +343,7 @@ export interface MainEvents {
   'recording:state': RecordingState
   'transcript:segment': { meetingId: string; segment: Segment }
   'transcript:partial': { meetingId: string; channel: ChannelId; text: string; start: number }
+  'transcript:pending': { meetingId: string; items: PendingSegment[] }
   'transcript:error': { meetingId?: string; message: string }
   'meeting:updated': { meetingId: string }
   'meetings:changed': void

@@ -13,6 +13,7 @@ import logging
 import queue
 import threading
 import time
+import uuid
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Literal, Optional, Sequence
 
@@ -414,12 +415,25 @@ class StreamingSession:
             if cut.kind == "final":
                 with state.lock:
                     state.generation += 1
+                seg_id = uuid.uuid4().hex
                 self._worker.submit(
                     Job(
-                        run=lambda cut=cut, channel=channel: self._transcribe_final(channel, cut),
+                        run=lambda cut=cut, channel=channel, seg_id=seg_id: self._transcribe_final(channel, cut, seg_id),
                         description=f"segment {channel} {cut.start:.2f}-{cut.end:.2f}",
                         session_id=self.session_id,
                     )
+                )
+                # Announce the cut before its text exists. Transcribing a sentence takes seconds (far longer
+                # than real time for a large model on a CPU), and without this the app shows nothing at all
+                # between someone speaking and the text landing - which reads as "it is not working".
+                self._emit.emit(
+                    "pending",
+                    session_id=self.session_id,
+                    channel=channel,
+                    seg_id=seg_id,
+                    start=round(cut.start, 3),
+                    end=round(cut.end, 3),
+                    queue=self._worker.pending(),
                 )
             else:
                 with state.lock:
@@ -444,15 +458,27 @@ class StreamingSession:
         text = finalize_text(result.text, result.avg_logprob, result.no_speech_prob, self.vocabulary)
         return text, float(result.avg_logprob), float(result.no_speech_prob)
 
-    def _transcribe_final(self, channel: str, cut: Cut) -> None:
-        text, avg_logprob, no_speech_prob = self._transcribe(cut)
+    def _transcribe_final(self, channel: str, cut: Cut, seg_id: str = "") -> None:
+        try:
+            text, avg_logprob, no_speech_prob = self._transcribe(cut)
+        except Exception:
+            # The app shows a placeholder until this id comes back. A segment that died must close it, or the
+            # user is left watching work that will never finish.
+            self._emit_segment(channel, cut, seg_id, "", 0.0, 1.0)
+            raise
         if text is None:
             log.debug("dropped segment %s %.2f-%.2f", channel, cut.start, cut.end)
+            self._emit_segment(channel, cut, seg_id, "", 0.0, 1.0)
             return
+        self._emit_segment(channel, cut, seg_id, text, avg_logprob, no_speech_prob)
+
+    def _emit_segment(self, channel: str, cut: Cut, seg_id: str, text: str, avg_logprob: float, no_speech_prob: float) -> None:
+        """Emit one final segment. Empty ``text`` means "nothing was said here" and only closes the placeholder."""
         self._emit.emit(
             "segment",
             session_id=self.session_id,
             channel=channel,
+            seg_id=seg_id,
             start=round(cut.start, 3),
             end=round(cut.end, 3),
             text=text,

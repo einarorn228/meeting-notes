@@ -128,7 +128,7 @@ export function RecordingPage(): ReactNode {
             <span>{t('rec.liveTranscript')}</span>
             <span className="engine-status">{sidecarBusy ? rec.sidecar?.message : rec.state.engineStatus || t('rec.engineStarting')}</span>
           </div>
-          <TranscriptList segments={rec.segments} partials={rec.partials} live emptyText={t('rec.waiting')} />
+          <TranscriptList segments={rec.segments} partials={rec.partials} pending={rec.pending} live emptyText={t('rec.waiting')} />
         </section>
       </div>
 

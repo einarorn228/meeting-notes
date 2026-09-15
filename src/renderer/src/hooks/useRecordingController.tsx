@@ -7,7 +7,7 @@
  * The main process can toggle recording via the `hotkey:toggleRecording` event and request navigation via `navigate`.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { ChannelId, RecordingState, Segment, SidecarStatus } from '@shared/types'
+import type { ChannelId, PendingSegment, RecordingState, Segment, SidecarStatus } from '@shared/types'
 import { api } from '@/api'
 import { startCapture, type CaptureHandle } from '@/audio/capture'
 import { useEvent } from './useEvent'
@@ -32,6 +32,8 @@ export interface RecordingController {
   levels: { mic: number; system: number }
   segments: Segment[]
   partials: Partials
+  /** Speech already captured and queued, still waiting for its text. */
+  pending: PendingSegment[]
   /** Reason string from capture when system audio could not be captured (null when fine). */
   systemUnavailable: string | null
   /** True when main reports an active recording but this renderer holds no capture handle (window reloaded). */
@@ -71,6 +73,7 @@ export function RecordingProvider({ children }: { children: ReactNode }): ReactN
   const [levels, setLevels] = useState({ mic: 0, system: 0 })
   const [segments, setSegments] = useState<Segment[]>([])
   const [partials, setPartials] = useState<Partials>({})
+  const [pending, setPending] = useState<PendingSegment[]>([])
   const [systemUnavailable, setSystemUnavailable] = useState<string | null>(null)
   const [captureLost, setCaptureLost] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -140,6 +143,10 @@ export function RecordingProvider({ children }: { children: ReactNode }): ReactN
   useEvent('transcript:partial', ({ meetingId, channel, text, start }) => {
     if (stateRef.current.meetingId && meetingId !== stateRef.current.meetingId) return
     setPartials((p) => ({ ...p, [channel]: text ? { text, start } : undefined }))
+  })
+  useEvent('transcript:pending', ({ meetingId, items }) => {
+    if (stateRef.current.meetingId && meetingId !== stateRef.current.meetingId) return
+    setPending(items)
   })
   useEvent('transcript:error', ({ message }) => setError(message))
   useEvent('sidecar:status', (s) => setSidecar(s))
@@ -275,6 +282,7 @@ export function RecordingProvider({ children }: { children: ReactNode }): ReactN
       levels,
       segments,
       partials,
+      pending,
       systemUnavailable,
       captureLost,
       error,
@@ -289,7 +297,7 @@ export function RecordingProvider({ children }: { children: ReactNode }): ReactN
       markHighlight,
       clearError
     }),
-    [state, elapsedSec, levels, segments, partials, systemUnavailable, captureLost, error, sidecar, title, setTitle, busy, start, stop, toggle, togglePause, markHighlight, clearError]
+    [state, elapsedSec, levels, segments, partials, pending, systemUnavailable, captureLost, error, sidecar, title, setTitle, busy, start, stop, toggle, togglePause, markHighlight, clearError]
   )
   return <RecordingContext.Provider value={value}>{children}</RecordingContext.Provider>
 }
