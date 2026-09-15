@@ -10,7 +10,7 @@ import logging
 import os
 import threading
 from dataclasses import dataclass
-from typing import Any, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 
@@ -108,16 +108,140 @@ def _build(seg: str, emb: str, threshold: float, num_speakers: int, threads: int
         return sd
 
 
-def diarize_audio(audio: np.ndarray, seg: str, emb: str, *, threshold: float = 0.55, num_speakers: int = -1, threads: Optional[int] = None) -> List[DiarSegment]:
-    """Diarizes 16 kHz mono float32 audio. Returns segments sorted by start time."""
+# Clusters with less audio than this have embeddings too noisy to compare (a 1 s "já" scored 0.15 against
+# its own speaker's 80 s cluster); they are attached to the most similar reliable cluster instead.
+MIN_RELIABLE_S = 4.0
+# Two clusters whose whole-audio embeddings are at least this similar are one voice. Measured on real
+# recordings: the same speaker split in two scored 0.86 and 0.75; the highest score between two different
+# speakers was 0.62.
+MERGE_SIMILARITY = 0.7
+# How much of a cluster's audio (longest segments first) goes into its embedding.
+CENTROID_AUDIO_S = 40.0
+
+_extractor_lock = threading.Lock()
+_extractors: dict[tuple[str, int], Any] = {}
+
+
+def _extractor(emb: str, threads: int) -> Any:
+    import sherpa_onnx
+
+    with _extractor_lock:
+        ex = _extractors.get((emb, threads))
+        if ex is None:
+            ex = sherpa_onnx.SpeakerEmbeddingExtractor(sherpa_onnx.SpeakerEmbeddingExtractorConfig(model=emb, num_threads=threads))
+            _extractors.clear()
+            _extractors[(emb, threads)] = ex
+        return ex
+
+
+def _embed(extractor: Any, audio: np.ndarray) -> np.ndarray:
+    stream = extractor.create_stream()
+    stream.accept_waveform(SAMPLE_RATE, audio)
+    stream.input_finished()
+    vec = np.asarray(extractor.compute(stream), dtype=np.float32)
+    return vec / (np.linalg.norm(vec) + 1e-9)
+
+
+def merge_speakers(
+    audio: np.ndarray,
+    segments: List[DiarSegment],
+    embed: Callable[[np.ndarray], np.ndarray],
+    *,
+    num_speakers: int = -1,
+    merge_similarity: float = MERGE_SIMILARITY,
+    min_reliable_s: float = MIN_RELIABLE_S,
+) -> List[DiarSegment]:
+    """Merge clusters that are the same voice.
+
+    The clustering step works on one embedding per short segment, and short segments embed badly, so one
+    person in a call came back as seven "participants". Whole-cluster embeddings (up to 40 s of that
+    cluster's audio in one go) are far more stable, and comparing *those* is what this does: tiny clusters
+    are attached to the most similar reliable one, then the two most similar clusters are merged - and
+    re-embedded - while they still look like one voice, or until ``num_speakers`` remain when the user said
+    how many people were on the line.
+    """
+    if not segments:
+        return segments
+    clusters: Dict[int, List[DiarSegment]] = {}
+    for s in segments:
+        clusters.setdefault(s.speaker, []).append(s)
+    if len(clusters) == 1:
+        return segments
+
+    def duration(k: int) -> float:
+        return sum(s.end - s.start for s in clusters[k])
+
+    def centroid(k: int) -> np.ndarray:
+        chunks: List[np.ndarray] = []
+        total = 0.0
+        for s in sorted(clusters[k], key=lambda s: s.start - s.end):
+            chunks.append(audio[int(s.start * SAMPLE_RATE) : int(s.end * SAMPLE_RATE)])
+            total += s.end - s.start
+            if total >= CENTROID_AUDIO_S:
+                break
+        return embed(np.concatenate(chunks))
+
+    cents = {k: centroid(k) for k in clusters}
+
+    def absorb(victim: int, into: int) -> None:
+        clusters[into].extend(clusters.pop(victim))
+        cents.pop(victim)
+        cents[into] = centroid(into)
+
+    # 1. Tiny clusters cannot be judged on their own embedding; give them to the nearest reliable voice.
+    reliable = [k for k in clusters if duration(k) >= min_reliable_s]
+    if reliable:
+        for k in [k for k in clusters if k not in reliable]:
+            best = max(reliable, key=lambda r: float(cents[k] @ cents[r]))
+            log.info("speaker cluster %d (%.1f s) is too short to trust; attached to %d", k, duration(k), best)
+            absorb(k, best)
+
+    # 2. Merge the most similar pair while it still looks like one voice (or until the user's count).
+    target = int(num_speakers) if num_speakers and num_speakers > 0 else 1
+    while len(clusters) > target:
+        keys = sorted(clusters)
+        pair = max(((a, b) for i, a in enumerate(keys) for b in keys[i + 1 :]), key=lambda ab: float(cents[ab[0]] @ cents[ab[1]]))
+        sim = float(cents[pair[0]] @ cents[pair[1]])
+        if num_speakers <= 0 and sim < merge_similarity:
+            break
+        keep, drop = (pair if duration(pair[0]) >= duration(pair[1]) else (pair[1], pair[0]))
+        log.info("merging speaker clusters %d and %d (similarity %.2f)", drop, keep, sim)
+        absorb(drop, keep)
+
+    merged: List[DiarSegment] = []
+    for k, segs in clusters.items():
+        merged.extend(DiarSegment(start=s.start, end=s.end, speaker=k) for s in segs)
+    merged.sort(key=lambda s: s.start)
+    return merged
+
+
+def diarize_audio(
+    audio: np.ndarray,
+    seg: str,
+    emb: str,
+    *,
+    threshold: float = 0.55,
+    num_speakers: int = -1,
+    threads: Optional[int] = None,
+    merge: bool = True,
+) -> List[DiarSegment]:
+    """Diarizes 16 kHz mono float32 audio. Returns segments sorted by start time.
+
+    Clustering always runs unconstrained (it over-splits, which is recoverable); ``num_speakers`` and the
+    merge step then decide how many voices remain. See :func:`merge_speakers`.
+    """
     threads = threads or min(4, os.cpu_count() or 2)
-    sd = _build(seg, emb, float(threshold), int(num_speakers), int(threads))
+    sd = _build(seg, emb, float(threshold), -1, int(threads))
     if audio.dtype != np.float32:
         audio = audio.astype(np.float32)
     if len(audio) < 16000:  # < 1 s: nothing to split
         return []
     result = sd.process(audio).sort_by_start_time()
-    return [DiarSegment(start=float(r.start), end=float(r.end), speaker=int(r.speaker)) for r in result]
+    segments = [DiarSegment(start=float(r.start), end=float(r.end), speaker=int(r.speaker)) for r in result]
+    if not merge:
+        return segments
+    extractor = _extractor(emb, int(threads))
+    return merge_speakers(audio, segments, lambda a: _embed(extractor, a), num_speakers=int(num_speakers))
 
 
 def diarize_file(
