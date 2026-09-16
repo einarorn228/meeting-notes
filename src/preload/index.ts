@@ -43,6 +43,8 @@ export interface FundarritariApi {
   deleteMeetingAudio(id: string): Promise<void>
   searchMeetings(query: string): Promise<SearchResult[]>
   renameSpeaker(meetingId: string, from: string, to: string): Promise<Meeting>
+  /** Names to offer when naming a speaker: this meeting's invitees, then names used in earlier meetings. */
+  speakerSuggestions(meetingId: string): Promise<string[]>
   updateSegment(meetingId: string, segmentId: string, patch: { text?: string; speaker?: string }): Promise<Meeting>
   getAudioUrl(meetingId: string): Promise<string | null>
   importAudioFile(): Promise<{ meetingId: string } | null>
@@ -121,6 +123,7 @@ const api: FundarritariApi = {
   deleteMeetingAudio: (id) => invoke('meetings:deleteAudio', id),
   searchMeetings: (q) => invoke('meetings:search', q),
   renameSpeaker: (meetingId, from, to) => invoke('meetings:renameSpeaker', meetingId, from, to),
+  speakerSuggestions: (meetingId) => invoke('meetings:speakerSuggestions', meetingId),
   updateSegment: (meetingId, segmentId, patch) => invoke('meetings:updateSegment', meetingId, segmentId, patch),
   getAudioUrl: (id) => invoke('meetings:audioUrl', id),
   importAudioFile: () => invoke('meetings:importAudio'),

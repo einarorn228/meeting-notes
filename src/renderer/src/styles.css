@@ -343,3 +343,8 @@ mark { background: #ffe58a; color: #111; border-radius: 3px; padding: 0 1px; }
 /* How far the transcript trails the talking, shown while recording. */
 .lag-chip { margin-left: auto; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 500; color: var(--muted); background: var(--bg); white-space: nowrap; }
 .lag-chip.behind { color: var(--warning); background: var(--warning-soft); }
+
+/* Names offered under a prompt field (speaker naming). */
+.prompt-suggestions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.chip-button { cursor: pointer; color: var(--text); font: inherit; font-size: 12px; }
+.chip-button:hover { border-color: var(--accent); color: var(--accent); }

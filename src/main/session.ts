@@ -45,7 +45,7 @@ export class RecordingSession extends EventEmitter {
   private stopping = false
   private lastTMs: Record<ChannelId, number> = { mic: 0, system: 0 }
 
-  constructor(opts: { title?: string; language?: string; app?: string; calendarEventId?: string }) {
+  constructor(opts: { title?: string; language?: string; app?: string; calendarEventId?: string; invitees?: string[] }) {
     super()
     const s = getSettings()
     this.meetingId = newId()
@@ -61,6 +61,7 @@ export class RecordingSession extends EventEmitter {
       status: 'recording',
       app: opts.app,
       calendarEventId: opts.calendarEventId,
+      invitees: opts.invitees?.length ? opts.invitees : undefined,
       participants: [],
       speakerNames: { me: 'Ég', others: 'Aðrir' },
       segments: [],

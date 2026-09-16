@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseIcs, detectAppFromText } from '../src/main/detect/calendar'
+import { parseIcs, detectAppFromText, attendeeName } from '../src/main/detect/calendar'
 
 const ICS = `BEGIN:VCALENDAR
 VERSION:2.0
@@ -11,6 +11,12 @@ SUMMARY:Stöðufundur\\, vika 38
 DESCRIPTION:Join here: https://teams.microsoft.com/l/meetup-join/19%3ameeting_abc
  %40thread.v2/0?context=x
 LOCATION:Microsoft Teams Meeting
+ORGANIZER;CN="Einar Örn":mailto:einar@example.is
+ATTENDEE;CN=Aníta Jónsdóttir;ROLE=REQ-PARTICIPANT:mailto:anita@example.is
+ATTENDEE;CN="Jón Þór Sigurðsson":mailto:jon@example.is
+ATTENDEE;CN=Aníta Jónsdóttir:mailto:anita@example.is
+ATTENDEE:mailto:sigrun.olafs@example.is
+ATTENDEE:mailto:info@example.is
 END:VEVENT
 BEGIN:VEVENT
 UID:abc-2
@@ -26,6 +32,21 @@ RRULE:FREQ=WEEKLY
 SUMMARY:Endurtekinn
 END:VEVENT
 END:VCALENDAR`
+
+describe('who was invited', () => {
+  it('reads the names off the invitation, in order, without repeats', () => {
+    // These become the names offered when a speaker is named, so an address that is not a person's name
+    // ("info@") is left out rather than offered as one.
+    expect(parseIcs(ICS)[0].attendees).toEqual(['Einar Örn', 'Aníta Jónsdóttir', 'Jón Þór Sigurðsson', 'Sigrun Olafs'])
+    expect(parseIcs(ICS)[1].attendees).toBeUndefined()
+  })
+
+  it('prefers the display name the calendar wrote', () => {
+    expect(attendeeName('CN="Guðrún Jónsdóttir";ROLE=CHAIR', 'mailto:g@x.is')).toBe('Guðrún Jónsdóttir')
+    expect(attendeeName('', 'mailto:einar.orn@x.is')).toBe('Einar Orn')
+    expect(attendeeName('', 'mailto:reception@x.is')).toBe(null)
+  })
+})
 
 describe('parseIcs', () => {
   it('parses events, unfolds lines, detects meeting apps and join urls', () => {

@@ -27,6 +27,24 @@ function unescape(v: string): string {
   return v.replace(/\\n/g, '\n').replace(/\\,/g, ',').replace(/\;/g, ';').replace(/\\\\/g, '\\')
 }
 
+/**
+ * The display name on an ATTENDEE or ORGANIZER line: `CN="Aníta Jónsdóttir"` if the calendar wrote one,
+ * otherwise a name read out of the address (`anita.jonsdottir@x.is`). Bare addresses without a separator are
+ * left out - "einar@x.is" is not a name anyone wants offered to them.
+ */
+export function attendeeName(params: string, value: string): string | null {
+  const cn = params.match(/CN=(?:"([^"]*)"|([^;]*))/i)
+  const name = unescape((cn?.[1] ?? cn?.[2] ?? '').trim())
+  if (name && !name.includes('@')) return name
+  const local = value.trim().replace(/^mailto:/i, '').split('@')[0]
+  if (!/[._-]/.test(local)) return null
+  return local
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
+}
+
 export function detectAppFromText(text: string): string | undefined {
   const t = text.toLowerCase()
   if (t.includes('teams.microsoft.com') || t.includes('teams.live.com') || t.includes('microsoft teams')) return 'teams'
@@ -40,9 +58,11 @@ export function detectAppFromText(text: string): string | undefined {
 export function parseIcs(ics: string): CalendarEvent[] {
   const events: CalendarEvent[] = []
   let cur: Record<string, { value: string; params: string }> | null = null
+  let attendees: string[] = []
   for (const line of unfold(ics)) {
     if (line === 'BEGIN:VEVENT') {
       cur = {}
+      attendees = []
       continue
     }
     if (line === 'END:VEVENT' && cur) {
@@ -59,7 +79,8 @@ export function parseIcs(ics: string): CalendarEvent[] {
           end: end.toISOString(),
           location: loc || undefined,
           joinUrl: urlMatch ? urlMatch[0] : undefined,
-          app: detectAppFromText(desc + ' ' + loc + ' ' + (cur.URL?.value ?? ''))
+          app: detectAppFromText(desc + ' ' + loc + ' ' + (cur.URL?.value ?? '')),
+          attendees: attendees.length ? attendees.slice(0, 20) : undefined
         })
       }
       cur = null
@@ -71,7 +92,14 @@ export function parseIcs(ics: string): CalendarEvent[] {
     const keyPart = line.slice(0, idx)
     const value = line.slice(idx + 1)
     const [key, ...params] = keyPart.split(';')
-    cur[key.toUpperCase()] = { value, params: params.join(';') }
+    const upper = key.toUpperCase()
+    if (upper === 'ATTENDEE' || upper === 'ORGANIZER') {
+      // Many lines per event, so these are collected rather than kept in the single-value map.
+      const name = attendeeName(params.join(';'), value)
+      if (name && !attendees.includes(name)) attendees.push(name)
+      continue
+    }
+    cur[upper] = { value, params: params.join(';') }
   }
   return events
 }
@@ -112,6 +140,10 @@ export class CalendarService {
     this.events = all.filter((e) => new Date(e.end).getTime() > now - 3600000 && new Date(e.start).getTime() < now + 7 * 86400000).sort((a, b) => a.start.localeCompare(b.start))
     this.checkUpcoming()
     return this.upcoming()
+  }
+
+  find(id: string): CalendarEvent | undefined {
+    return this.events.find((e) => e.id === id)
   }
 
   upcoming(): CalendarEvent[] {

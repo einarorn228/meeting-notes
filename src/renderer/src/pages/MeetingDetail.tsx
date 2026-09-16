@@ -36,6 +36,7 @@ export function MeetingPage({ id, initialTab, initialTime }: Props): ReactNode {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmDeleteAudio, setConfirmDeleteAudio] = useState(false)
   const [rename, setRename] = useState<{ key: string; label: string } | null>(null)
+  const [nameSuggestions, setNameSuggestions] = useState<string[]>([])
   const [retrans, setRetrans] = useState(false)
   const [speakersDialog, setSpeakersDialog] = useState(false)
   // Speech the engine has queued but not written out yet. Without this the transcript tab of a meeting that
@@ -252,7 +253,10 @@ export function MeetingPage({ id, initialTab, initialTime }: Props): ReactNode {
           meeting={meeting}
           activeId={activeSeg}
           onSeek={audioUrl ? seek : undefined}
-          onRename={(key, label) => setRename({ key, label })}
+          onRename={(key, label) => {
+            setRename({ key, label })
+            void api.speakerSuggestions(id).then(setNameSuggestions).catch(() => setNameSuggestions([]))
+          }}
           onRetranscribe={() => setRetrans(true)}
           onSpeakers={meeting.audioFile ? () => setSpeakersDialog(true) : undefined}
           needsPunct={!!needsPunct}
@@ -326,6 +330,8 @@ export function MeetingPage({ id, initialTab, initialTime }: Props): ReactNode {
           title={t('transcript.renameSpeaker')}
           hint={t('transcript.renameSpeakerHint', { name: rename.label })}
           initial={rename.label}
+          suggestions={nameSuggestions.filter((n) => n !== rename.label)}
+          suggestionsLabel={t('transcript.renameSpeakerSuggestions')}
           onCancel={() => setRename(null)}
           onSubmit={async (v) => {
             if (v.trim()) {

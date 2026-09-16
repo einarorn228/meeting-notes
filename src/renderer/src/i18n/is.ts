@@ -220,6 +220,7 @@ export const is = {
   'transcript.retranscribeStarted': 'Endurritun hafin',
   'transcript.renameSpeaker': 'Endurnefna ræðumann',
   'transcript.renameSpeakerHint': 'Nýtt nafn fyrir „{name}“ (gildir fyrir öll innlegg)',
+  'transcript.renameSpeakerSuggestions': 'Nöfn sem þú hefur notað:',
   'transcript.editSegment': 'Breyta texta',
   'transcript.matches': '{n} niðurstöður',
   'transcript.copyAll': 'Afrita uppskrift',

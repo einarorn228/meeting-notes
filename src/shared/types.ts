@@ -188,6 +188,8 @@ export interface Meeting {
   /** Detected meeting app (teams, zoom, meet, ...) */
   app?: string
   calendarEventId?: string
+  /** Names from the calendar invitation, offered when naming speakers. */
+  invitees?: string[]
   participants: string[]
   speakerNames: Record<string, string>
   segments: Segment[]
@@ -253,6 +255,8 @@ export interface CalendarEvent {
   location?: string
   joinUrl?: string
   app?: string
+  /** Names from the invitation (ATTENDEE/ORGANIZER), used to suggest speaker names. */
+  attendees?: string[]
 }
 
 export interface SidecarStatus {

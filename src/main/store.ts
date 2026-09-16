@@ -135,6 +135,30 @@ export function allMeetings(): Meeting[] {
     .filter((m): m is Meeting => !!m)
 }
 
+/**
+ * Names to offer when someone is naming a speaker: whoever was invited to this meeting, then the names used in
+ * earlier meetings, most recent first. Typing "Aníta" once should be enough; the second time it is a click.
+ */
+export function speakerNameSuggestions(meetingId: string): string[] {
+  const out: string[] = []
+  const add = (name: string): void => {
+    const n = name.trim()
+    if (!n || n === 'Ég' || n === 'Aðrir' || /^Þátttakandi \d+$/.test(n)) return
+    if (!out.some((x) => x.toLowerCase() === n.toLowerCase())) out.push(n)
+  }
+  const meeting = loadMeeting(meetingId)
+  for (const name of meeting?.invitees ?? []) add(name)
+  for (const item of listMeetings()) {
+    if (item.id === meetingId) continue
+    const m = loadMeeting(item.id)
+    if (!m) continue
+    for (const name of m.participants) add(name)
+    for (const name of Object.values(m.speakerNames)) add(name)
+    if (out.length >= 24) break
+  }
+  return out.slice(0, 24)
+}
+
 export function transcriptText(segments: Segment[]): string {
   return segments
     .filter((s) => !s.partial)

@@ -217,6 +217,7 @@ export const en: Record<TranslationKey, string> = {
   'transcript.retranscribeStarted': 'Re-transcription started',
   'transcript.renameSpeaker': 'Rename speaker',
   'transcript.renameSpeakerHint': 'New name for "{name}" (applies to all their segments)',
+  'transcript.renameSpeakerSuggestions': 'Names you have used:',
   'transcript.editSegment': 'Edit text',
   'transcript.matches': '{n} matches',
   'transcript.copyAll': 'Copy transcript',

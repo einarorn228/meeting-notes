@@ -56,7 +56,7 @@ export function ConfirmDialog({ title, message, confirmLabel, danger, onConfirm,
   )
 }
 
-export function PromptDialog({ title, hint, initial, placeholder, confirmLabel, multiline, onSubmit, onCancel }: { title: ReactNode; hint?: ReactNode; initial?: string; placeholder?: string; confirmLabel?: string; multiline?: boolean; onSubmit: (value: string) => void | Promise<void>; onCancel: () => void }): ReactNode {
+export function PromptDialog({ title, hint, initial, placeholder, confirmLabel, multiline, suggestions, suggestionsLabel, onSubmit, onCancel }: { title: ReactNode; hint?: ReactNode; initial?: string; placeholder?: string; confirmLabel?: string; multiline?: boolean; suggestions?: string[]; suggestionsLabel?: ReactNode; onSubmit: (value: string) => void | Promise<void>; onCancel: () => void }): ReactNode {
   const t = useT()
   const [value, setValue] = useState(initial ?? '')
   const [busy, setBusy] = useState(false)
@@ -95,6 +95,16 @@ export function PromptDialog({ title, hint, initial, placeholder, confirmLabel, 
             if (e.key === 'Enter') void submit()
           }}
         />
+      )}
+      {suggestions && suggestions.length > 0 && (
+        <div className="prompt-suggestions">
+          {suggestionsLabel && <span className="muted small">{suggestionsLabel}</span>}
+          {suggestions.map((s) => (
+            <button key={s} type="button" className="chip chip-button" onClick={() => setValue(s)}>
+              {s}
+            </button>
+          ))}
+        </div>
       )}
     </Modal>
   )

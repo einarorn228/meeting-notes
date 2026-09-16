@@ -12,7 +12,7 @@ import { TEMPLATES } from './ai/templates'
 import { writeExport, toHtml } from './export'
 import { getSettings, saveSettings, dataDir } from './settings'
 import { RecordingSession, appLabel } from './session'
-import { audioPath, deleteAudio, deleteMeeting, listMeetings, loadMeeting, meetingDir, newId, saveMeeting, searchMeetings, updateMeeting } from './store'
+import { audioPath, deleteAudio, deleteMeeting, listMeetings, loadMeeting, meetingDir, newId, saveMeeting, searchMeetings, speakerNameSuggestions, updateMeeting } from './store'
 import { createEngine, testEngine } from './transcription'
 import { sidecar } from './transcription/sidecar'
 import { checkForUpdates, getUpdateStatus, installUpdate } from './updater'
@@ -44,7 +44,9 @@ function idleState(): RecordingState {
 
 export async function startRecording(ctx: AppContext, opts: { title?: string; language?: string; app?: string; calendarEventId?: string }): Promise<{ meetingId: string }> {
   if (session) return { meetingId: session.meetingId }
-  const s = new RecordingSession(opts)
+  // The invitation knows who was asked to the meeting; those names are offered when speakers are named.
+  const invitees = opts.calendarEventId ? ctx.calendar.find(opts.calendarEventId)?.attendees : undefined
+  const s = new RecordingSession({ ...opts, invitees })
   session = s
   s.on('state', (st: RecordingState) => broadcast('recording:state', st))
   s.on('segment', (meetingId: string, segment) => broadcast('transcript:segment', { meetingId, segment }))
@@ -288,6 +290,7 @@ export function registerIpc(ctx: AppContext): void {
     broadcast('meeting:updated', { meetingId: id })
   })
   h('meetings:search', (_e, q: string) => searchMeetings(q))
+  h('meetings:speakerSuggestions', (_e, id: string) => speakerNameSuggestions(id))
   h('meetings:renameSpeaker', (_e, id: string, from: string, to: string) => {
     const m = loadMeeting(id)
     if (!m) throw new Error('Fundur fannst ekki')

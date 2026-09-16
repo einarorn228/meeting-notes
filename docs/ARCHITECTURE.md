@@ -26,7 +26,7 @@ src/
       templates.ts         summary templates
       notes.ts             summarize, punctuate, chat, parse action items
     detect/apps.ts         meeting-app detection by process list (+ window titles on Windows)
-    detect/calendar.ts     ICS calendar polling and reminders
+    detect/calendar.ts     ICS calendar polling, reminders, and the invitation's attendee names
     export.ts              Markdown, text, SRT, DOCX, HTML→PDF
   renderer/src/
     audio/capture.ts       getUserMedia (mic) + getDisplayMedia loopback (system) → AudioWorklet → PCM16 16 kHz;
