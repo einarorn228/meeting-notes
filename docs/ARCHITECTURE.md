@@ -44,9 +44,13 @@ sidecar/fundarritari_stt/  Python: faster-whisper streaming with Silero VAD, fil
 2. An AudioWorklet in a 16 kHz AudioContext emits 100 ms PCM16 frames per channel with sample-accurate timestamps;
    they go to the main process over IPC (`audio:chunk`).
 3. `RecordingSession` writes the stereo WAV and feeds the engine. The local engine streams base64 PCM to the
-   Python sidecar, which runs Silero VAD per channel, cuts speech on ≥ 600 ms silence (max 24 s), decodes each
-   chunk with the Icelandic Whisper model (`without_timestamps=True`, vocabulary prompt), guards against
-   hallucinations, and returns final segments (and optional partials).
+   Python sidecar, which runs Silero VAD per channel, cuts speech on ≥ 900 ms silence (max 24 s), decodes each
+   chunk with the Icelandic Whisper model (`without_timestamps=True`), guards against hallucinations, and
+   returns final segments (and optional partials). Nothing about the recording depends on that process: if it
+   dies, the WAV keeps growing and `LocalEngine` opens the session again on a fresh one (five attempts), so a
+   crash costs the seconds it was down rather than the rest of the meeting. Timestamps are absolute, so the
+   text that does arrive still lands where it was said. Why the vocabulary list is *not* passed to the
+   recogniser is in `docs/research/05-measurements.md`.
 4. Segments are merged by start time; speaker = `me` (mic) or `others` (system); the UI shows them live.
 5. On stop: diarization of the system channel (sherpa-onnx pyannote segmentation + speaker embeddings) assigns
    `spk1..n` labels, the LLM restores punctuation/casing (the Icelandic models write lowercase), and the
