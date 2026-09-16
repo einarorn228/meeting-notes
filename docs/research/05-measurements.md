@@ -100,6 +100,42 @@ Icelandic fine-tunes from stock Whisper. The list still does the two things that
 the canonical spelling back into the finished text, and it goes to the AI pass, which fixes names from context
 instead of guessing at them mid-decode.
 
+## Transcribing queued cuts together, and what it costs
+
+When the machine is slower than the speech, the cuts waiting on one channel are transcribed in a single model
+call. Whisper always processes a 30 s window, so a short cut costs nearly as much as a long one, and this is
+what turns a growing backlog into a shrinking one. The question is what the text loses.
+
+12 runs of 4 consecutive utterances by one speaker (Spjallrómur, ~240 s of speech), decoded k at a time - k=1
+is the app when it keeps up, k=4 is a machine well behind:
+
+| Cuts per call | WER | Words returned | Time for the 240 s |
+|---|---|---|---|
+| 1 | 32.6 % | 85.9 % | 601 s |
+| 2 | 31.3 % | 81.2 % | 479 s |
+| 3 | 33.2 % | 80.9 % | 409 s |
+| 4 | 33.7 % | 80.5 % | 321 s |
+
+Merging costs about five percent of the words, all of it at the first merge, and nothing measurable in word
+error rate, for nearly twice the throughput. It stays.
+
+What did not stay is how far apart two cuts could be and still be merged. A merged line carries the start of
+the first cut and the end of the last, and the window allowed 60 seconds between them - so one line could
+cover the other person's replies, and the transcript printed answers before the questions that prompted them.
+
+Measured on a real 6:39 two-person call recorded with the app (a user's own recording, replayed through the
+app's streaming code at live speed):
+
+| | Lines | Median span | Longest line | Lines longer than one model call |
+|---|---|---|---|---|
+| As recorded, 0.1.12 | 36 | 9.0 s | 55.0 s | 9 |
+| Current code, 60 s window | 57 | 5.5 s | 26.6 s | 3 |
+| **Current code, 3 s window** | **58** | **3.6 s** | 27.9 s | **1** |
+
+The word count is the same in all three (507 / 502 / 498); what changes is that the words are where they were
+spoken. Three seconds is what separates two sentences of one turn from two turns - a cut needs 900 ms of quiet
+before it closes at all - so the backlog is still worked down in single calls.
+
 ## Recognising a voice from an earlier meeting (not shipped)
 
 If a voice could be recognised again, naming someone once would be enough. Measured with the app's own speaker
