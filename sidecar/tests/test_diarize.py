@@ -72,6 +72,27 @@ def _seg(start, end, speaker):
     return diarize.DiarSegment(start=start, end=end, speaker=speaker)
 
 
+def _noisy_embed(reliable_s=20.0, seed=0):
+    """Like ``_fake_embed``, but short audio embeds badly - which is the whole reason clusters split.
+
+    Real embeddings need seconds of speech to be stable: measured on a long Icelandic recording, 5-15 s
+    fragments of the main speaker scored 0.4-0.6 against that speaker's own 100 s cluster, well under the
+    0.7 that counts as one voice. This fake reproduces that: the less audio, the more the vector drifts.
+    """
+    rng = np.random.default_rng(seed)
+
+    def embed(audio):
+        voice = int(round(float(np.median(audio))))
+        seconds = len(audio) / 16000
+        vec = np.zeros(8, dtype=np.float32)
+        vec[voice] = 1.0
+        drift = max(0.0, 1.0 - seconds / reliable_s)  # 0 for long clusters, ~1 for a one-second fragment
+        vec[4:] = rng.normal(0, 1, 4).astype(np.float32) * drift
+        return vec / np.linalg.norm(vec)
+
+    return embed
+
+
 def _fake_embed(voice_of_time):
     """An embedding that depends only on which true voice is speaking at the audio's position.
 
@@ -142,3 +163,65 @@ def test_merge_leaves_single_cluster_and_empty_input_alone():
     assert diarize.merge_speakers(np.zeros(16000), [], _fake_embed(None)) == []
     one = [_seg(0, 5, 3), _seg(6, 9, 3)]
     assert diarize.merge_speakers(_audio_with_voices([(0, 9, 0)], 10), one, _fake_embed(None)) is one
+
+
+def test_a_long_meeting_with_one_voice_does_not_become_a_crowd():
+    """The failure this guards against, measured on real audio.
+
+    Clustering a long recording leaves a tail of 5-15 second fragments of the main speaker. Their embeddings
+    are too noisy to reach the merge threshold, so with a 4-second reliability floor each one survived as its
+    own "participant": 40 minutes of a single voice came back as 5 speakers, and a 40-minute two-person call
+    as 20 to 40 of them.
+    """
+    # One voice: two long stretches plus a tail of fragments, as the clustering leaves them.
+    truth = [(0, 300, 0), (310, 600, 0)] + [(610 + i * 20, 610 + i * 20 + 8, 0) for i in range(12)]
+    audio = _audio_with_voices(truth, total_s=900)
+    raw = [_seg(0, 300, 0), _seg(310, 600, 1)] + [_seg(610 + i * 20, 610 + i * 20 + 8, 2 + i) for i in range(12)]
+
+    merged = diarize.merge_speakers(audio, raw, _noisy_embed())
+
+    assert len({s.speaker for s in merged}) == 1, sorted({s.speaker for s in merged})
+    assert len(merged) == len(raw), "every segment is kept, only its label changes"
+
+
+def test_a_brief_speaker_survives_when_the_user_says_how_many_there_were():
+    """Folding short clusters in is what stops the crowd - but not past the count the user gave."""
+    audio = _audio_with_voices([(0, 300, 0), (305, 313, 1)], total_s=320)
+    raw = [_seg(0, 300, 0), _seg(305, 313, 1)]  # the second voice spoke for 8 s, below the reliability floor
+
+    alone = diarize.merge_speakers(audio, list(raw), _fake_embed(None))
+    assert len({s.speaker for s in alone}) == 1, "without a count, a brief voice joins the one it resembles"
+
+    told = diarize.merge_speakers(audio, list(raw), _fake_embed(None), num_speakers=2)
+    assert len({s.speaker for s in told}) == 2, "with a count, the brief voice keeps its own label"
+
+
+def test_a_short_recording_with_only_brief_clusters_is_still_one_voice():
+    """On a short call nothing reaches the reliability floor, and the step must not simply give up.
+
+    Measured on the tester's own 3-minute recording, whose clusters were all a second or two: with no anchor
+    to attach them to, the same voice came back as 18 "participants". The longest cluster is the anchor when
+    nothing else qualifies.
+    """
+    # Cut lengths as the voice detector really produces them: a few longer turns, many short interjections.
+    lengths = [7.0, 5.5, 4.0, 3.0, 2.5, 2.0, 2.0, 1.5, 1.5, 1.2, 1.0, 1.0, 0.8, 0.8, 0.6, 0.6, 0.5, 0.5]
+    truth, raw, t = [], [], 0.0
+    for i, length in enumerate(lengths):
+        truth.append((t, t + length, 0))
+        raw.append(_seg(t, t + length, i))
+        t += length + 4.0
+    audio = _audio_with_voices(truth, total_s=int(t) + 5)
+
+    merged = diarize.merge_speakers(audio, raw, _noisy_embed(seed=3))
+
+    assert len({s.speaker for s in merged}) == 1, sorted({s.speaker for s in merged})
+
+
+def test_two_voices_are_kept_apart_even_when_neither_talks_for_long():
+    """The anchor rule must not fuse people: clusters of comparable length are all anchors."""
+    audio = _audio_with_voices([(0, 10, 0), (12, 22, 1), (24, 34, 0), (36, 46, 1)])
+    raw = [_seg(0, 10, 0), _seg(12, 22, 1), _seg(24, 34, 2), _seg(36, 46, 3)]
+
+    merged = diarize.merge_speakers(audio, raw, _fake_embed(None))
+
+    assert len({s.speaker for s in merged}) == 2, merged

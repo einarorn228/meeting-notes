@@ -114,7 +114,15 @@ def _build(seg: str, emb: str, threshold: float, num_speakers: int, threads: int
 
 # Clusters with less audio than this have embeddings too noisy to compare (a 1 s "já" scored 0.15 against
 # its own speaker's 80 s cluster); they are attached to the most similar reliable cluster instead.
-MIN_RELIABLE_S = 4.0
+#
+# Measured against recordings with known speakers (1, 2 and 3 voices, 15 to 40 minutes): at 4 s, one voice
+# talking for 40 minutes came back as 5 speakers and a 40-minute two-person call as 20 to 40 - the clustering
+# leaves a long tail of 5-15 s fragments whose embeddings never reach the merge threshold, and every one of
+# them became a "participant". At 20 s every case came out exactly right (purity 1.00, completeness 0.99) at
+# every merge threshold from 0.6 to 0.7. The cost is that someone who speaks for less than 20 seconds in
+# total is folded into the voice they most resemble instead of getting a label of their own; when that
+# matters, the user gives the participant count and the fold-in stops at that many voices.
+MIN_RELIABLE_S = 20.0
 # Two clusters whose whole-audio embeddings are at least this similar are one voice. With ERes2Net on real
 # recordings of 1-4 speakers, every value from 0.6 to 0.8 produced the exact speaker count with purity
 # 1.00; 0.7 sits in the middle of that range.
@@ -193,15 +201,22 @@ def merge_speakers(
         cents[into] = centroid(into)
 
     # 1. Tiny clusters cannot be judged on their own embedding; give them to the nearest reliable voice.
-    reliable = [k for k in clusters if duration(k) >= min_reliable_s]
-    if reliable:
-        for k in [k for k in clusters if k not in reliable]:
-            best = max(reliable, key=lambda r: float(cents[k] @ cents[r]))
-            log.info("speaker cluster %d (%.1f s) is too short to trust; attached to %d", k, duration(k), best)
-            absorb(k, best)
+    #    Smallest first, and never past the count the user gave us: if they said three people were on the
+    #    line, the third voice keeps its label even when it only spoke briefly.
+    target = int(num_speakers) if num_speakers and num_speakers > 0 else 1
+    # On a short recording nothing may reach the floor; the longest cluster is then the best anchor there is,
+    # and anything much shorter is still noise. Without this, a 3-minute recording whose clusters were all a
+    # second or two skipped the step entirely and came back as 18 "participants".
+    floor = min(min_reliable_s, max(duration(k) for k in clusters))
+    reliable = [k for k in clusters if duration(k) >= floor]
+    for k in sorted([k for k in clusters if k not in reliable], key=duration):
+        if len(clusters) <= target:
+            break
+        best = max(reliable, key=lambda r: float(cents[k] @ cents[r]))
+        log.info("speaker cluster %d (%.1f s) is too short to trust; attached to %d", k, duration(k), best)
+        absorb(k, best)
 
     # 2. Merge the most similar pair while it still looks like one voice (or until the user's count).
-    target = int(num_speakers) if num_speakers and num_speakers > 0 else 1
     while len(clusters) > target:
         keys = sorted(clusters)
         pair = max(((a, b) for i, a in enumerate(keys) for b in keys[i + 1 :]), key=lambda ab: float(cents[ab[0]] @ cents[ab[1]]))
