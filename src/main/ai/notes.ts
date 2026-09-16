@@ -50,6 +50,17 @@ export function parseSummary(markdown: string): Pick<Summary, 'title' | 'keyPoin
   return { title, keyPoints, decisions, actionItems }
 }
 
+/**
+ * The words the model is told are spelled this way: the user's own vocabulary plus the names on this meeting's
+ * invitation. The invitation is only evidence of spelling, not of who turned up, so the names go here rather
+ * than into the list of participants.
+ */
+function vocabularyFor(m: Meeting): string[] {
+  const out = [...getSettings().vocabulary]
+  for (const name of m.invitees ?? []) if (!out.some((x) => x.toLowerCase() === name.toLowerCase())) out.push(name)
+  return out
+}
+
 export async function summarizeMeeting(meetingId: string, templateId: string | undefined, progress: ProgressFn): Promise<Summary> {
   const m = loadMeeting(meetingId)
   if (!m) throw new Error('Fundur fannst ekki')
@@ -58,7 +69,7 @@ export async function summarizeMeeting(meetingId: string, templateId: string | u
   const tpl = getTemplate(templateId ?? s.llm.summaryTemplateId)
   const lang = m.language === 'auto' ? 'is' : m.language
   progress('summary', 0.1)
-  const res = await complete(summarySystemPrompt(lang), [{ role: 'user', content: summaryUserPrompt(m, tpl, lang, s.vocabulary) }], { maxTokens: 16000, temperature: 0.2 })
+  const res = await complete(summarySystemPrompt(lang), [{ role: 'user', content: summaryUserPrompt(m, tpl, lang, vocabularyFor(m)) }], { maxTokens: 16000, temperature: 0.2 })
   progress('summary', 0.9)
   const parsed = parseSummary(res.text)
   const summary: Summary = { templateId: tpl.id, language: lang, generatedAt: new Date().toISOString(), provider: res.provider, model: res.model, markdown: res.text.trim(), ...parsed }
@@ -75,7 +86,7 @@ export async function punctuateMeeting(meetingId: string, progress: ProgressFn):
   let m = loadMeeting(meetingId)
   if (!m) throw new Error('Fundur fannst ekki')
   const lang = m.language === 'auto' ? 'is' : m.language
-  const vocab = getSettings().vocabulary
+  const vocab = vocabularyFor(m)
   const segs = m.segments.filter((x) => !x.partial)
   const batchSize = 40
   for (let i = 0; i < segs.length; i += batchSize) {
