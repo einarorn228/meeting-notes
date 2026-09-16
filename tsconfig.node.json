@@ -15,5 +15,7 @@
     "baseUrl": ".",
     "paths": { "@shared/*": ["src/shared/*"] }
   },
-  "include": ["electron.vite.config.ts", "src/main/**/*", "src/preload/**/*", "src/shared/**/*", "tests/**/*"]
+  "include": ["electron.vite.config.ts", "src/main/**/*", "src/preload/**/*", "src/shared/**/*", "tests/**/*"],
+  // Tests that exercise renderer code need the DOM types; they are checked by tsconfig.web.json instead.
+  "exclude": ["tests/**/*.web.test.ts"]
 }

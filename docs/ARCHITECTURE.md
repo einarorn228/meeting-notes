@@ -29,7 +29,8 @@ src/
     detect/calendar.ts     ICS calendar polling and reminders
     export.ts              Markdown, text, SRT, DOCX, HTML→PDF
   renderer/src/
-    audio/capture.ts       getUserMedia (mic) + getDisplayMedia loopback (system) → AudioWorklet → PCM16 16 kHz
+    audio/capture.ts       getUserMedia (mic) + getDisplayMedia loopback (system) → AudioWorklet → PCM16 16 kHz;
+                           one clock for both channels, and a channel whose device vanishes is reopened
     hooks/useRecordingController.tsx  owns capture handle + main session lifecycle
     pages/                 Home, Recording, MeetingDetail, Settings, Search, Onboarding
     i18n/                  Icelandic (default) and English dictionaries

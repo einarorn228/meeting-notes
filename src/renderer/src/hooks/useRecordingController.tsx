@@ -198,7 +198,10 @@ export function RecordingProvider({ children }: { children: ReactNode }): ReactN
           echoCancellation: s.audio.echoCancellation,
           noiseSuppression: s.audio.noiseSuppression,
           onLevels: (l) => setLevels(l),
-          onSystemAudioUnavailable: (reason) => setSystemUnavailable(reason)
+          onSystemAudioUnavailable: (reason) => setSystemUnavailable(reason),
+          onChannelLost: (ch) => toast(t('rec.channelLost', { channel: t(`rec.${ch}`) }), 'error'),
+          onChannelRestored: (ch) => toast(t('rec.channelRestored', { channel: t(`rec.${ch}`) }), 'success'),
+          onChannelGone: (ch) => toast(t('rec.channelGone', { channel: t(`rec.${ch}`) }), 'error')
         })
         if (s.audio.captureSystemAudio && !handle.current.hasSystem) setSystemUnavailable((r) => r ?? 'no-audio-track')
       } catch (err) {
