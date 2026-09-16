@@ -37,9 +37,34 @@ jobs:
           python -m pip install -r requirements.txt pytest jiwer
           python -m pytest -q -m "not slow"
 
+  prepare-release:
+    name: Create the draft release
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # electron-builder creates the draft itself if it is missing - and three platform jobs packaging at the
+      # same second create three of them. That happened once: the Windows installer went into one draft named
+      # v0.1.14 and the mac and Linux ones into another, so neither was a complete release. Creating the draft
+      # here, before any platform starts, leaves them nothing to race over.
+      - name: Create the draft release if it does not exist yet
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="v$(node -p "require('./package.json').version")"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "$TAG already exists"
+          else
+            gh release create "$TAG" --draft --title "$TAG" --notes "Sjá breytingar í samantekt útgáfunnar." --target "$GITHUB_SHA"
+          fi
+
   build:
     name: Build installers (${{ matrix.os }})
-    needs: test
+    needs: [test, prepare-release]
+    # prepare-release is skipped on ordinary pushes, which must still build.
+    if: ${{ !cancelled() && needs.test.result == 'success' && contains(fromJSON('["success", "skipped"]'), needs.prepare-release.result) }}
     strategy:
       fail-fast: false
       matrix:
@@ -115,6 +140,11 @@ jobs:
           set -euo pipefail
           TAG="v$(node -p "require('./package.json').version")"
           echo "Publishing $TAG"
+          DRAFTS=$(gh release list --limit 100 --json tagName --jq "[.[] | select(.tagName == \"$TAG\")] | length")
+          if [ "$DRAFTS" != "1" ]; then
+            echo "::error::Found $DRAFTS releases tagged $TAG - the platform jobs did not upload into one release."
+            exit 1
+          fi
           ASSETS=$(gh release view "$TAG" --json assets --jq '.assets[].name')
           echo "$ASSETS"
           MISSING=""

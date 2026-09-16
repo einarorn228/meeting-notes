@@ -353,8 +353,8 @@ export const is = {
 
   'settings.vocab.title': 'Orðaforði',
   'settings.vocab.hint':
-    'Nöfn fólks, fyrirtækja, verkefna og sérhæfð hugtök – eitt í hverja línu. Listinn lagar stafsetningu þeirra í uppskriftinni og lætur gervigreindina skrifa þau rétt í fundargerðinni.',
-  'settings.vocab.placeholder': 'Guðrún Jónsdóttir\nHafnarfjarðarbær\nSAP\n…',
+    'Nöfn fólks, fyrirtækja, verkefna og sérhæfð hugtök – eitt í hverja línu. Ensk orð sem þið notið í íslensku tali eiga líka heima hér. Listinn lagar stafsetningu þeirra í uppskriftinni og lætur gervigreindina skrifa þau rétt í fundargerðinni.',
+  'settings.vocab.placeholder': 'Guðrún Jónsdóttir\nHafnarfjarðarbær\nSAP\nonboarding\n…',
   'settings.vocab.count': '{n} orð',
 
   'settings.detection.enabled': 'Greina fundi sjálfkrafa',

@@ -55,3 +55,17 @@ def test_sentence_case_leaves_alone_what_it_should():
     assert sentence_case("iPhone er dýr") == "iPhone er dýr."  # the vocabulary spelled it, not the model
     assert sentence_case("SAP kerfið") == "SAP kerfið."
     assert sentence_case("") == ""
+
+
+def test_the_recognisers_unintelligible_marker_does_not_reach_the_user():
+    # The Icelandic fine-tunes write "unk" where the speech was not made out. In a real recording it landed
+    # mid-sentence ("þetta er besta unk sem ég hef notað") and as whole lines of its own.
+    assert finalize_text("þetta er besta unk sem ég hef notað unk", -0.3, 0.1, None, True) == (
+        "Þetta er besta … sem ég hef notað …"
+    )
+    assert finalize_text("unk", -0.3, 0.1, None, True) is None
+    assert finalize_text("Unk. unk", -0.3, 0.1, None, True) is None
+
+
+def test_words_that_merely_contain_unk_are_left_alone():
+    assert clean_text("þetta er chunk af unkti") == "þetta er chunk af unkti"

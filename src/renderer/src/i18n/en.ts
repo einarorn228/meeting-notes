@@ -348,8 +348,8 @@ export const en: Record<TranslationKey, string> = {
 
   'settings.vocab.title': 'Vocabulary',
   'settings.vocab.hint':
-    'Names of people, companies, projects and specialised terms – one per line. The list corrects their spelling in the transcript and makes the AI write them correctly in the minutes.',
-  'settings.vocab.placeholder': 'Guðrún Jónsdóttir\nHafnarfjarðarbær\nSAP\n…',
+    'Names of people, companies, projects and specialised terms – one per line. Words from another language that you use while speaking belong here too. The list corrects their spelling in the transcript and makes the AI write them correctly in the minutes.',
+  'settings.vocab.placeholder': 'Guðrún Jónsdóttir\nHafnarfjarðarbær\nSAP\nonboarding\n…',
   'settings.vocab.count': '{n} terms',
 
   'settings.detection.enabled': 'Detect meetings automatically',

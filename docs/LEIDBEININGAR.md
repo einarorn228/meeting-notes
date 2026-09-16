@@ -129,6 +129,7 @@ Flipar fundarins:
 - **Notaðu heyrnartól** (helst með snúru). Þá blandast rödd hinna ekki inn í hljóðnemann þinn og allir fá rétt merki.
 - **Bluetooth-heyrnartól** geta valdið því að „Kerfishljóð“-mælirinn stendur kyrr. Ef það gerist: veldu heyrnartólin sem hljóðúttak í Windows *áður* en fundurinn hefst, eða notaðu hátalara tölvunnar.
 - Skráðu **nöfn fólks og fagorð** undir **Stillingar → Orðaforði** (eitt í hverja línu). Þau eru þá skrifuð rétt í uppskriftinni og í fundargerðinni.
+- **Ensk orð inni í íslensku tali** („up to speed“, heiti á forritum) eru skrifuð eins og þau hljóma – talgreiningarlíkanið kann aðeins íslensku. Gervigreindin lagar þau eftir á þegar samhengið er ótvírætt. Settu ensku orðin sem þið notið í **Orðaforða**, þá rata þau rétt inn.
 
 ![Orðaforði](img/13-stillingar-ordafordi.png)
 - Fyrsta skiptið sem talgreiningin fer í gang eftir að tölvan er ræst tekur hún um hálfa mínútu að hlaða líkaninu. Ræstu Fundarritara nokkrum mínútum fyrir fund.
@@ -148,6 +149,8 @@ Flipar fundarins:
 | Ég nenni ekki að skrifa sömu nöfnin í hvert sinn | Smelltu á ræðumanninn í uppskriftinni – undir reitnum eru nöfnin sem þú hefur notað áður, og þeir sem boðaðir voru á fundinn ef hann kom úr dagatalinu. Eitt klikk setur nafnið inn. |
 | Sama manneskjan er merkt sem „Þátttakandi 2, 3, 4…“ | Forritið giskaði á of marga ræðumenn (átti að lagast í 0.1.11). Opnaðu fundinn → **Uppskrift** → **Ræðumenn…** og sláðu inn hversu margir töluðu hinum megin (t.d. `1` ef þú talaðir við eina manneskju). Þá er greiningin keyrð aftur með réttum fjölda. |
 | „Ræðumenn…“ segir að hljóðupptakan sé ekki geymd | Ræðumannagreining þarf hljóðskrá fundarins. Kveiktu á **Stillingar → Almennt → Geyma hljóðskrár** fyrir næstu fundi (eldri fundir án hljóðs er ekki hægt að greina aftur). |
+| Ensk orð koma út sem bull („vorm kittí“, „ýkja forritinu“) | Íslenska líkanið kann ekki ensku og skrifar hana eins og hún hljómar. Frá 0.1.15 leiðréttir gervigreindin slík orð þegar samhengið segir ótvírætt hvað var sagt, og orð úr **Stillingar → Orðaforða** rata rétt inn. Sé fundurinn að mestu á ensku má velja fjöltyngt líkan í **Stillingar → Talgreining** – það kann ensku en er miklu ónákvæmara á íslensku. |
+| Þrír punktar „…“ birtast í uppskriftinni | Þar náði talgreinirinn ekki því sem sagt var (oftast hlátur, tal ofan í hvort annað eða enska). Fram að 0.1.15 stóð þarna orðið „unk“. |
 | Uppskriftin varð verri eftir að ég fyllti út orðaforðann | Lagað í 0.1.13. Í eldri útgáfum var listinn sendur inn í talgreininn sjálfan og gat ruglað hann (orð féllu út, vinnslan varð margfalt hægari). Uppfærðu – eða tæmdu listann þangað til. Eftir uppfærslu lagar listinn stafsetningu nafna eftir á, sem virkar. |
 | Heyrnartólin (eða hljóðneminn) duttu út í miðjum fundi | Forritið tekur eftir því, lætur þig vita og reynir að ná sambandi við sama tæki aftur í allt að tvær mínútur. Upptakan heldur áfram á meðan; það sem vantaði verður þögn á réttum stað í upptökunni. |
 | Talgreiningin datt út í miðjum fundi | Forritið ræsir hana aftur sjálft (fimm tilraunir) og segir frá því. Upptakan heldur áfram allan tímann; það sem sagt var á meðan hún var niðri vantar í uppskriftina, en þú getur skrifað fundinn upp úr hljóðinu eftir á með **Endurrita**. Gerist þetta oft er tölvan líklega minnislaus – prófaðu minna líkan í **Stillingar → Talgreining**. |

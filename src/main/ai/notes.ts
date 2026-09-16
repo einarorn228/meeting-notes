@@ -92,7 +92,12 @@ export async function punctuateMeeting(meetingId: string, progress: ProgressFn):
   for (let i = 0; i < segs.length; i += batchSize) {
     const batch = segs.slice(i, i + batchSize)
     progress('punctuate', i / segs.length)
-    const user = (vocab.length ? `Orðalisti: ${vocab.join(', ')}\n\n` : '') + 'Línur:\n' + batch.map((x) => x.text.replace(/\s+/g, ' ').trim()).join('\n')
+    // The lines go up in batches of 40, so each call sees only a slice of the meeting. The title and the
+    // participants cost almost nothing and are often what lets the model place a word it is unsure of.
+    const context = [`Fundur: ${m.title}`, m.participants.length ? `Þátttakendur: ${m.participants.join(', ')}` : '', vocab.length ? `Orðalisti: ${vocab.join(', ')}` : '']
+      .filter(Boolean)
+      .join('\n')
+    const user = context + '\n\nLínur:\n' + batch.map((x) => x.text.replace(/\s+/g, ' ').trim()).join('\n')
     const res = await complete(punctuateSystemPrompt(lang), [{ role: 'user', content: user }], { maxTokens: 16000, temperature: 0, effort: 'low' })
     const arr = extractJsonArray(res.text)
     if (!arr || arr.length !== batch.length) {

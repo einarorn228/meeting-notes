@@ -137,3 +137,47 @@ describe('summarising an hour-long meeting', () => {
     expect(saved[0].title).toBe('Fundur um fjárhagsáætlun') // the generated title replaces "Fundur 15.9.2026"
   })
 })
+
+describe('tidying the transcript before it is read', () => {
+  it('gives the model the meeting it is tidying and writes back exactly the lines it returns', async () => {
+    // The lines go up in batches, so each call sees a slice of the meeting and nothing else. Without the
+    // title and the participants there is nothing in the request to tell the model what "ýkja" was.
+    const segments = [
+      { id: 'a', channel: 'mic', start: 0, end: 4, text: 'ég var að fá ýkja húsið', speaker: 'me' },
+      { id: 'b', channel: 'system', start: 5, end: 7, text: 'já einmitt', speaker: 'others' }
+    ]
+    const meeting = {
+      id: 'm2', title: 'Húshönnun í IKEA', createdAt: '2026-09-16T21:48:00.000Z', durationSec: 400, language: 'is',
+      engine: 'local', status: 'done', segments, highlights: [], participants: ['Aníta'],
+      speakerNames: { me: 'Ég', others: 'Aníta' }, chat: [], notes: '', punctuated: false
+    }
+    const saved: Record<string, unknown>[] = []
+    vi.resetModules()
+    vi.doMock('../src/main/store', () => ({
+      loadMeeting: () => meeting,
+      saveMeeting: (m: Record<string, unknown>) => saved.push(m),
+      allMeetings: () => [meeting],
+      transcriptText: () => '',
+      formatTime: (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
+    }))
+    vi.doMock('../src/main/settings', () => ({
+      getSettings: () => ({
+        llm: { provider: 'anthropic', anthropicApiKey: 'sk-ant-test', anthropicModel: 'claude-opus-5' },
+        vocabulary: [], language: 'is'
+      })
+    }))
+    const { punctuateMeeting } = await import('../src/main/ai/notes')
+
+    sent.length = 0
+    handler = streamMessage('["Ég var að fá IKEA-húsið.", "Já, einmitt."]')
+    const out = await punctuateMeeting('m2', () => {})
+
+    const system = String((sent[0].system as { text: string }[])[0].text)
+    expect(system).toContain('…') // the recogniser's gap marker must not be guessed at
+    const user = String((sent[0].messages as { content: string }[])[0].content)
+    expect(user).toContain('Fundur: Húshönnun í IKEA')
+    expect(user).toContain('Þátttakendur: Aníta')
+    expect(out.segments.map((s) => s.text)).toEqual(['Ég var að fá IKEA-húsið.', 'Já, einmitt.'])
+    expect(out.punctuated).toBe(true)
+  })
+})

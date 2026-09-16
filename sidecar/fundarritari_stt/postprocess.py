@@ -21,6 +21,15 @@ MAX_WORD_REPEATS = 3  # longer runs of the same word/phrase are collapsed to thi
 _WS = re.compile(r"\s+")
 _PUNCT_EDGES = re.compile(r"^[\s\.,;:!?\-–—\"'«»]+|[\s\-–—\"'«»]+$")
 
+# The Icelandic fine-tunes were trained on corpora that write "unk" where the transcriber could not make the
+# speech out, so the models emit that literal word - most often over laughter, crosstalk or an English phrase.
+# It is not a word in any language the app transcribes, and reading "besta unk sem ég hef notað" tells the user
+# nothing. An ellipsis says the same thing honestly, and the note prompts are told not to guess what it hid.
+UNINTELLIGIBLE = "…"
+_UNK = re.compile(r"[\s,;:]*\bunk\b[\s,;:]*", re.IGNORECASE)
+_ELLIPSIS_RUN = re.compile(r"(?:…\s*){2,}")
+_HAS_WORD = re.compile(r"\w", re.UNICODE)
+
 
 def _word_key(token: str) -> str:
     return token.casefold().strip(".,;:!?\"'«»-–—")
@@ -64,11 +73,20 @@ def collapse_repeats(text: str, max_repeats: int = MAX_WORD_REPEATS, max_ngram: 
     return " ".join(out)
 
 
+def mark_unintelligible(text: str) -> str:
+    """Replace the recogniser's ``unk`` marker with an ellipsis; return ``""`` if nothing else was said."""
+    if "unk" not in text.casefold():
+        return text
+    marked = _ELLIPSIS_RUN.sub(UNINTELLIGIBLE + " ", _UNK.sub(f" {UNINTELLIGIBLE} ", text))
+    marked = _WS.sub(" ", marked).strip()
+    return marked if _HAS_WORD.search(marked) else ""
+
+
 def clean_text(text: Optional[str]) -> str:
     """Normalise whitespace, strip stray edge punctuation and collapse runaway repetitions."""
     if not text:
         return ""
-    cleaned = _WS.sub(" ", text).strip()
+    cleaned = mark_unintelligible(_WS.sub(" ", text).strip())
     cleaned = _PUNCT_EDGES.sub("", cleaned).strip()
     return collapse_repeats(cleaned)
 
