@@ -15,9 +15,27 @@ export interface DiarSegment {
   speaker: number
 }
 
+/** How far from a labelled voice a line may sit and still be taken to be that voice. */
+const NEAR_S = 2.0
+
+/** The speaker of the nearest labelled speech, when there is one close enough to be the same turn. */
+function nearestSpeaker(diar: DiarSegment[], s: Segment): number | null {
+  let best: number | null = null
+  let bestGap = NEAR_S
+  for (const d of diar) {
+    const gap = d.start > s.end ? d.start - s.end : s.start > d.end ? s.start - d.end : 0
+    if (gap <= bestGap) {
+      best = d.speaker
+      bestGap = gap
+    }
+  }
+  return best
+}
+
 /** Assigns each system-channel transcript segment the diarization speaker with the largest time overlap. */
 export function assignSpeakers(segments: Segment[], diar: DiarSegment[], label: (n: number) => string): { segments: Segment[]; speakers: Record<string, string> } {
   const used = new Map<string, string>()
+  const only = new Set(diar.map((d) => d.speaker))
   const out = segments.map((s) => {
     if (s.channel !== 'system') return s
     const overlaps = new Map<number, number>()
@@ -33,6 +51,11 @@ export function assignSpeakers(segments: Segment[], diar: DiarSegment[], label: 
         bestO = o
       }
     }
+    // The diarizer's own segmenter misses very short utterances - a "Já." between two sentences - and those
+    // lines then stayed the anonymous "Aðrir" in the middle of a conversation with a named person. Take the
+    // voice speaking either side of it, and when only one person was ever found on this channel, that person.
+    if (best === null && only.size === 1) best = [...only][0]
+    if (best === null) best = nearestSpeaker(diar, s)
     if (best === null) return s
     const key = `spk${best + 1}`
     if (!used.has(key)) used.set(key, label(best + 1))
