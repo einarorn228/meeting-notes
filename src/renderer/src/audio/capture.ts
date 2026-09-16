@@ -40,6 +40,12 @@ const FRAME = 1600 // 100 ms
 const RECOVER_FOR_MS = 120000
 const RECOVER_EVERY_MS = 2000
 const RECOVER_SLOWEST_MS = 10000
+/**
+ * How far a channel may fall behind the meeting clock before its audio is placed at the real time again.
+ * Generously large on purpose: a busy renderer can deliver a second of frames late in one burst, and that is
+ * not lost audio, while a machine that slept or an audio graph that was suspended is out for much longer.
+ */
+const STALL_MS = 5000
 
 interface Track {
   channel: ChannelId
@@ -61,10 +67,11 @@ export async function startCapture(opts: CaptureOptions): Promise<CaptureHandle>
   let paused = false
   let stopping = false
   let levelTimer: number | undefined
-  // One clock for both channels. Loopback audio takes a moment longer to open than the microphone, and counting
-  // each channel's samples from its own zero put everything the other side said that much too early.
-  const t0 = performance.now()
-  const nowMs = (): number => performance.now() - t0
+  // One clock for both channels, and the same clock the main process measures the meeting with. Loopback audio
+  // takes a moment longer to open than the microphone, and counting each channel's samples from its own zero
+  // put everything the other side said that much too early.
+  const t0 = Date.now()
+  const nowMs = (): number => Date.now() - t0
 
   const detach = (track: Track): void => {
     const i = tracks.indexOf(track)
@@ -94,6 +101,11 @@ export async function startCapture(opts: CaptureOptions): Promise<CaptureHandle>
         track.samplesSent += FRAME
         return
       }
+      // Sample count is what keeps timestamps smooth, but it only counts audio that was actually produced:
+      // a sleeping machine, or an audio graph that was suspended for a while, would otherwise have everything
+      // said afterwards written as if no time had passed. Rejoin the meeting's clock when it has drifted.
+      const behind = nowMs() - (track.startMs + (track.samplesSent / SAMPLE_RATE) * 1000)
+      if (behind > STALL_MS) track.startMs += behind
       const tMs = Math.round(track.startMs + (track.samplesSent / SAMPLE_RATE) * 1000)
       track.samplesSent += FRAME
       window.fundarritari.pushAudio(channel, ev.data.pcm, tMs)

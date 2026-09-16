@@ -146,6 +146,18 @@ describe('a microphone that disappears mid-meeting', () => {
     await handle.stop()
   })
 
+  it('places audio at the real time again after the graph stalled', async () => {
+    const { startCapture } = await import('../src/renderer/src/audio/capture')
+    const handle = await startCapture({ captureMic: true, captureSystem: false, echoCancellation: true, noiseSuppression: true })
+    for (let i = 0; i < 5; i++) frame() // 0.5 s
+    contexts[0].state = 'suspended'
+    await vi.advanceTimersByTimeAsync(30000) // lid closed for half a minute
+    frame()
+    // Not 500 ms, which is all the audio there is: what was said after the machine woke belongs where it was said.
+    expect(pushed[pushed.length - 1].tMs).toBeGreaterThan(29000)
+    await handle.stop()
+  })
+
   it('stops trying once the meeting is stopped', async () => {
     const { startCapture } = await import('../src/renderer/src/audio/capture')
     const gone: string[] = []
