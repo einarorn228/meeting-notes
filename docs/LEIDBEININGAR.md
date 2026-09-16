@@ -87,7 +87,8 @@ stöðuna: *„Sæki líkan…“* → *„Hleð líkani…“* → **„Tilbúi
 
 
 **Textinn kemur með smá töf – það er eðlilegt.** Forritið bíður eftir að þú ljúkir setningunni (það þarf heila
-setningu til að skrifa rétta íslensku) og skrifar hana svo upp. Á meðan sérðu línu með tímanum, nafninu þínu og
+setningu til að skrifa rétta íslensku) og skrifar hana svo upp. Stutt andartaksþögn í miðri setningu telst ekki
+sem setningalok: forritið leyfir tæpa sekúndu af þögn áður en það klippir, svo setningin komi heil. Á meðan sérðu línu með tímanum, nafninu þínu og
 þremur punktum sem hreyfast – það þýðir *„þetta heyrðist og er í vinnslu“*. Þegar textinn er tilbúinn kemur hann
 í staðinn fyrir punktana.
 

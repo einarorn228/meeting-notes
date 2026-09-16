@@ -272,7 +272,8 @@ def test_queued_cuts_are_transcribed_together_when_the_worker_is_behind(sink: Re
         session = StreamingSession("s7", language="is", channels=["mic"], vocabulary=[], partials=False,
                                    punctuated=False, engine=engine, worker=worker, emit=sink)
         # Four sentences separated by pauses long enough to cut on.
-        audio = np.concatenate([silence(0.3)] + [np.concatenate([speech(1.5), silence(0.9)]) for _ in range(4)])
+        # Pauses longer than min_silence_ms (900 ms), so each sentence is a cut of its own.
+        audio = np.concatenate([silence(0.3)] + [np.concatenate([speech(1.5), silence(1.2)]) for _ in range(4)])
         session.feed("mic", 0, audio)
         session.stop()
         sink.wait_for(lambda e: e["type"] == "stopped", timeout=20)
@@ -336,7 +337,7 @@ def test_the_reported_backlog_counts_waiting_cuts_not_queued_jobs(sink: Recordin
     try:
         session = StreamingSession("s10", language="is", channels=["mic"], vocabulary=[], partials=False,
                                    punctuated=False, engine=engine, worker=worker, emit=sink)
-        audio = np.concatenate([silence(0.3)] + [np.concatenate([speech(1.2), silence(0.9)]) for _ in range(5)])
+        audio = np.concatenate([silence(0.3)] + [np.concatenate([speech(1.2), silence(1.2)]) for _ in range(5)])
         session.feed("mic", 0, audio)
         announced = sink.of_type("pending")
         assert len(announced) == 5
@@ -355,3 +356,19 @@ def test_the_reported_backlog_counts_waiting_cuts_not_queued_jobs(sink: Recordin
         assert drain == sorted(drain, reverse=True), drain
     finally:
         worker.stop()
+
+
+def test_a_breath_inside_a_sentence_does_not_start_a_new_line():
+    """Short pauses are part of speaking, not the end of a thought.
+
+    At 600 ms the app cut on them, and a single sentence arrived as two or three fragments - each transcribed
+    without the rest for context, and each costing a full model call. Measured on real Icelandic conversation,
+    900 ms left the word error rate unchanged while cutting the number of one-and-two-word lines by a fifth.
+    """
+    stream = ChannelStream(OPTS)
+    # One sentence with a breath in the middle, then a real pause, then the next sentence.
+    audio = np.concatenate([silence(0.3), speech(1.5), silence(0.7), speech(1.5, seed=1), silence(1.4), speech(1.5, seed=2), silence(1.2)])
+    finals = [c for c in feed_all(stream, audio) + stream.flush() if c.kind == "final"]
+    assert len(finals) == 2, [(round(c.start, 2), round(c.end, 2)) for c in finals]
+    assert finals[0].end - finals[0].start > 3.0  # both halves of the first sentence, breath included
+    assert finals[1].end - finals[1].start < 2.5

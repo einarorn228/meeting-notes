@@ -33,7 +33,12 @@ log = logging.getLogger("fundarritari_stt.streaming")
 class StreamingOptions:
     sample_rate: int = SAMPLE_RATE
     vad_interval_s: float = 0.5
-    min_silence_ms: int = 600
+    # How long a speaker may pause before the sentence is cut and sent to the model. Measured on real
+    # Icelandic conversation (two disjoint samples, 11 and 17 minutes, scored against reference text):
+    # going from 600 ms to 900 ms left the word error rate unchanged (0.272 -> 0.263 and 0.206 -> 0.207),
+    # while producing 10-15% fewer cuts, 16-26% fewer one-and-two-word lines, and ~10% less model work.
+    # A line therefore appears about 300 ms later, and reads as a whole thought more often.
+    min_silence_ms: int = 900
     max_segment_s: float = 24.0
     pad_ms: int = 200
     min_speech_ms: int = 250

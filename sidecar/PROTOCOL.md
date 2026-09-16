@@ -41,7 +41,7 @@ object (an *event*). stderr is free-form logging. Audio is PCM16 little-endian m
 
 Per channel: keep a rolling buffer of float32 audio. Every ~500 ms of new audio run Silero VAD
 (`faster_whisper.vad.get_speech_timestamps`) on the buffer. When a speech region has ended at least
-`min_silence_ms` (600 ms) before the end of the buffer, or the current speech region exceeds `max_segment_s` (24 s),
+`min_silence_ms` (900 ms) before the end of the buffer, or the current speech region exceeds `max_segment_s` (24 s),
 cut the region (with 200 ms padding), transcribe it with `model.transcribe(audio, language=..., beam_size=5,
 without_timestamps=True, condition_on_previous_text=False, initial_prompt=<vocabulary prompt>,
 vad_filter=False)` and emit one `segment` with absolute timestamps (session time). Non-speech audio is discarded,
