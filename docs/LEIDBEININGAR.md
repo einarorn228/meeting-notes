@@ -93,9 +93,14 @@ setningu til að skrifa rétta íslensku) og skrifar hana svo upp. Á meðan sé
 
 Á tölvu án skjákorts tekur hver stök setning lengri tíma en að segja hana. Þegar setningar safnast upp
 vinnur forritið nokkrar þeirra saman í einu – það er miklu fljótara – og þá birtist textinn í lengri bútum
-(nokkrar setningar í einni línu). Ef bunkinn verður samt stór birtist *„Talgreining hefur ekki undan – textinn
-klárast eftir fundinn“*. Fundurinn tapast ekki: forritið klárar uppskriftina eftir að þú stöðvar upptökuna, og
-línurnar með punktunum sjást líka á fundarsíðunni undir **Uppskrift** á meðan.
+(nokkrar setningar í einni línu). Uppi í hægra horninu á uppskriftinni sést hversu langt á eftir textinn er,
+til dæmis *„Uppskrift er ~20 sek á eftir tali“*; það er eðlilegt ástand og talan á að haldast svipuð út
+fundinn. Fari hún yfir tvær mínútur segir forritið að uppskriftin klárist eftir fundinn. Fundurinn tapast
+ekki: forritið heldur áfram að skrifa eftir að þú stöðvar upptökuna, og línurnar með punktunum sjást líka á
+fundarsíðunni undir **Uppskrift** á meðan.
+
+Til viðmiðunar: í prófun á venjulegri fjögurra kjarna tölvu, á klukkutíma samtali tveggja manns þar sem talað
+var nánast stanslaust, hélst textinn um 13 sekúndum á eftir talinu allan fundinn og bunkinn stækkaði ekki.
 
 ## 5. Eftir fundinn
 
@@ -139,6 +144,7 @@ Flipar fundarins:
 | Villa um „float16 compute type“ þegar líkan er hlaðið | Forritið velur nú sjálft rétta stillingu fyrir tölvuna; uppfærðu í nýjustu útgáfu. Þarftu lausn strax: **Stillingar → Talgreining** → settu **Tæki** á `cpu` og **Reiknigerð** á `int8`, og smelltu svo á **Hlaða líkani**. |
 | „Hleð líkani…“ stendur mjög lengi og ekkert er skrifað á fundi | Uppfærðu í nýjustu útgáfu – í 0.1.5 og 0.1.6 gat hleðslan tekið margar mínútur og upptakan beið á meðan. Í nýrri útgáfum tekur hún hálfa til eina mínútu og sýnir hvaða vél er notuð („Hleð talgreiningarlíkani á cpu/int8…“). |
 | Sama manneskjan er merkt sem „Þátttakandi 2, 3, 4…“ | Forritið giskaði á of marga ræðumenn. Opnaðu fundinn → **Uppskrift** → **Ræðumenn…** og sláðu inn hversu margir töluðu hinum megin (t.d. `1` ef þú talaðir við eina manneskju). Þá er greiningin keyrð aftur með réttum fjölda. |
+| „Ræðumenn…“ segir að hljóðupptakan sé ekki geymd | Ræðumannagreining þarf hljóðskrá fundarins. Kveiktu á **Stillingar → Almennt → Geyma hljóðskrár** fyrir næstu fundi (eldri fundir án hljóðs er ekki hægt að greina aftur). |
 | Ekkert gerist í langan tíma eftir að ég stöðva | Stór fundur á hægri tölvu getur tekið nokkrar mínútur í vinnslu. Skildu forritið eftir opið. |
 | Samantekt verður ekki til | Það þarf gervigreindarlykil: **Stillingar → Gervigreind** → *Anthropic (Claude)* → límdu lykilinn → **Prófa tengingu**. |
 | Ég vil byrja upp á nýtt | **Stillingar → Persónuvernd → Opna möppu** – þar eru allir fundir sem möppur. Það má eyða þeim. |
