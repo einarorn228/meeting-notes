@@ -11,9 +11,11 @@ def test_prompt_for_punctuated_model_is_icelandic_sentence():
     assert prompt == "Fundur. Nöfn og hugtök: Einar Örn, Alþingi."
 
 
-def test_prompt_for_lowercase_model_matches_its_style():
-    prompt = build_initial_prompt(["Einar Örn", "Alþingi"], "is", punctuated=False)
-    assert prompt == "fundur nöfn og hugtök einar örn alþingi"
+def test_a_model_that_writes_no_punctuation_gets_no_prompt():
+    # The Icelandic fine-tunes were trained to emit bare lowercase speech; a list of names in front of that
+    # makes them drop words and, often enough to matter, run away repeating the prompt. Measured, not guessed:
+    # see docs/research/05-measurements.md.
+    assert build_initial_prompt(["Einar Örn", "Alþingi"], "is", punctuated=False) is None
 
 
 def test_prompt_english_and_empty():

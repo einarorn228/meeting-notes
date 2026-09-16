@@ -348,7 +348,7 @@ export const en: Record<TranslationKey, string> = {
 
   'settings.vocab.title': 'Vocabulary',
   'settings.vocab.hint':
-    'Names of people, companies, projects and specialised terms – one per line. The transcription engine and the AI use the list to spell them correctly.',
+    'Names of people, companies, projects and specialised terms – one per line. The list corrects their spelling in the transcript and makes the AI write them correctly in the minutes.',
   'settings.vocab.placeholder': 'Guðrún Jónsdóttir\nHafnarfjarðarbær\nSAP\n…',
   'settings.vocab.count': '{n} terms',
 

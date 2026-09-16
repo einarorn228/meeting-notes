@@ -101,7 +101,7 @@ def test_stream_session_flow(server: Server, sink: RecordingSink, fake_engine: F
     assert re.fullmatch(r"Chunk 2\.[2-6]s\.", seg["text"])
     assert "avg_logprob" in seg and "no_speech_prob" in seg
     assert sink.events.index(seg) < sink.events.index(stopped)
-    assert fake_engine.calls[0]["initial_prompt"] == "fundur nöfn og hugtök chunk"
+    assert fake_engine.calls[0]["initial_prompt"] is None  # not for a model that writes no punctuation
     # After stop the session is gone.
     server.handle({"type": "stop", "session_id": "m1"})
     assert "unknown session" in sink.of_type("error")[-1]["message"]

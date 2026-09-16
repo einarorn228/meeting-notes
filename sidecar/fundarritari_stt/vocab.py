@@ -1,5 +1,5 @@
-"""Vocabulary support: an ``initial_prompt`` that biases Whisper towards the meeting's names and
-terms, and a post-processing step that restores the casing of those terms in the output."""
+"""Vocabulary support: the meeting's names and terms, used to restore their casing in the output and - for
+models that can take it - to bias the decoder through Whisper's ``initial_prompt``."""
 
 from __future__ import annotations
 
@@ -47,32 +47,37 @@ def build_initial_prompt(
     punctuated: bool = True,
     max_tokens: int = MAX_PROMPT_TOKENS,
 ) -> Optional[str]:
-    """Build a prompt such as ``"Fundur. Nöfn og hugtök: Einar Örn, Alþingi."``.
+    """Build a prompt such as ``"Fundur. Nöfn og hugtök: Einar Örn, Alþingi."`` - or nothing at all.
 
-    For models that write lowercase text without punctuation (the Icelandic fine-tunes) the
-    prompt mirrors that style (lowercase, no punctuation) so it does not push the decoder out
-    of its training distribution; casing is restored afterwards by :func:`apply_vocabulary_casing`.
+    ``punctuated`` says whether the model writes its own punctuation, which is also what separates a stock
+    Whisper model from the Icelandic fine-tunes. Stock Whisper takes a prompt the way the Whisper paper
+    describes. The fine-tunes do not: they were trained to emit bare lowercase speech, and a list of names in
+    front of that pushes them out of what they know. Measured on Spjallrómur conversations, a prompt made them
+    drop words, invert meaning ("gengur upp" became "gengur ekki") and, often enough to matter, run away
+    repeating the prompt until Whisper's own quality thresholds forced a re-decode at every fallback
+    temperature - 153 seconds of processing for four seconds of speech, and a transcript worse than useless.
+    So they get no prompt. The vocabulary still restores their spelling afterwards and still goes to the AI
+    pass, which corrects names from context instead of guessing at them mid-decode.
     """
+    if not punctuated:
+        return None
     terms = normalize_vocabulary(vocabulary)
     if not terms:
         return None
     lead, label = _PROMPT_PREFIX.get((language or "is").lower(), _PROMPT_PREFIX["en"])
     kept: list[str] = []
     for term in terms:
-        candidate = _render_prompt(lead, label, kept + [term], punctuated)
+        candidate = _render_prompt(lead, label, kept + [term])
         if estimate_tokens(candidate) > max_tokens:
             break
         kept.append(term)
     if not kept:
         return None
-    return _render_prompt(lead, label, kept, punctuated)
+    return _render_prompt(lead, label, kept)
 
 
-def _render_prompt(lead: str, label: str, terms: Sequence[str], punctuated: bool) -> str:
-    if punctuated:
-        return f"{lead} {label} {', '.join(terms)}."
-    plain = f"{lead} {label} {' '.join(terms)}"
-    return re.sub(r"[.,:;!?]", "", plain).casefold()
+def _render_prompt(lead: str, label: str, terms: Sequence[str]) -> str:
+    return f"{lead} {label} {', '.join(terms)}."
 
 
 @lru_cache(maxsize=32)

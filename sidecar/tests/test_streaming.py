@@ -142,7 +142,9 @@ def test_session_emits_segments_partials_and_stopped_in_order(sink: RecordingSin
     assert 0.0 <= segments[0]["start"] < segments[0]["end"] <= 9.5
     partials = sink.of_type("partial")
     assert len(partials) == 1 and partials[0]["channel"] == "mic" and "start" in partials[0]
-    assert engine.calls[0]["initial_prompt"] == "fundur nöfn og hugtök chunk"
+    # No prompt for a model that writes no punctuation of its own: it makes the Icelandic fine-tunes worse
+    # and, often enough to matter, much slower (docs/research/05-measurements.md).
+    assert engine.calls[0]["initial_prompt"] is None
     assert engine.calls[0]["language"] == "is"
 
 

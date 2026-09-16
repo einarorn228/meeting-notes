@@ -353,7 +353,7 @@ export const is = {
 
   'settings.vocab.title': 'Orðaforði',
   'settings.vocab.hint':
-    'Nöfn fólks, fyrirtækja, verkefna og sérhæfð hugtök – eitt í hverja línu. Talgreinirinn og gervigreindin nota listann til að skrifa þau rétt.',
+    'Nöfn fólks, fyrirtækja, verkefna og sérhæfð hugtök – eitt í hverja línu. Listinn lagar stafsetningu þeirra í uppskriftinni og lætur gervigreindina skrifa þau rétt í fundargerðinni.',
   'settings.vocab.placeholder': 'Guðrún Jónsdóttir\nHafnarfjarðarbær\nSAP\n…',
   'settings.vocab.count': '{n} orð',
 
