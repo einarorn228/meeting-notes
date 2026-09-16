@@ -50,6 +50,7 @@ export const is = {
   'status.processing': 'Í vinnslu',
   'status.done': 'Lokið',
   'status.error': 'Villa',
+  'status.interrupted': 'Stöðvaðist',
 
   'engine.local': 'Staðbundið (á tölvunni)',
   'engine.azure': 'Azure Speech',
@@ -151,6 +152,11 @@ export const is = {
   'meeting.tagPlaceholder': 'Bæta við merki…',
   'meeting.processing': 'Fundurinn er enn í vinnslu – uppskriftin uppfærist sjálfkrafa.',
   'meeting.errorState': 'Villa kom upp við vinnslu: {msg}',
+  'meeting.interrupted':
+    'Upptakan stöðvaðist óvænt – forritið lokaðist eða tölvan slökkti á sér áður en fundinum lauk. Hljóðið er varðveitt, svo hægt er að ljúka uppskriftinni.',
+  'meeting.interruptedNoAudio':
+    'Upptakan stöðvaðist óvænt og ekkert hljóð var geymt, svo uppskriftin nær aðeins því sem þegar var komið.',
+  'meeting.finishTranscript': 'Ljúka uppskrift',
   'meeting.noAudio': 'Engin hljóðskrá',
   'meeting.audioUnavailable': 'Hljóðskráin er ekki lengur til',
   'meeting.export': 'Flytja út',

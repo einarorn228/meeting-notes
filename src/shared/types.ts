@@ -172,7 +172,8 @@ export interface ChatMessage {
   at: string
 }
 
-export type MeetingStatus = 'recording' | 'processing' | 'done' | 'error'
+/** 'interrupted': the app stopped mid-recording (crash, power cut) and the meeting was never finished. */
+export type MeetingStatus = 'recording' | 'processing' | 'done' | 'error' | 'interrupted'
 
 export interface Meeting {
   id: string

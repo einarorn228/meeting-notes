@@ -9,8 +9,10 @@ src/
                            fundarritari-audio:// protocol for playback, meeting/calendar notifications
     ipc.ts                 all IPC handlers; start/stop recording; post-processing pipeline
     session.ts             RecordingSession: PCM in → stereo WAV + engine, capture-health, live segments
-    wav.ts                 streaming stereo WAV writer (left = mic, right = system)
-    store.ts               local-first storage: data/meetings/<id>/meeting.json + audio.wav, search
+    wav.ts                 streaming stereo WAV writer (left = mic, right = system); header lengths kept current
+                           so a recording cut short by a crash is still a playable file
+    store.ts               local-first storage: data/meetings/<id>/meeting.json + audio.wav, search,
+                           startup recovery of meetings the app never finished
     settings.ts            settings.json with deep-merge defaults
     diarize.ts             speaker diarization of the system channel (via sidecar) → Þátttakandi 1..n
     transcription/

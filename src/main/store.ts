@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { dataDir } from './settings'
+import { wavDurationSec } from './wav'
 import type { Meeting, MeetingListItem, SearchResult, Segment } from '../shared/types'
 
 export function meetingsDir(): string {
@@ -78,6 +79,33 @@ export function deleteAudio(id: string): void {
   if (existsSync(p)) rmSync(p)
   const m = loadMeeting(id)
   if (m) saveMeeting({ ...m, audioFile: undefined })
+}
+
+/**
+ * Meetings still marked 'recording' when the app starts belong to a run that never stopped - a crash, a power
+ * cut, the machine shutting down mid-meeting. Nothing can be recording before the app is up, so they are marked
+ * interrupted here. Whatever the engine had already transcribed is in meeting.json, and the audio that reached
+ * the disk is a playable WAV, so the transcript can be finished from it on the meeting page.
+ */
+export function recoverInterruptedMeetings(): Meeting[] {
+  const out: Meeting[] = []
+  for (const id of readdirSync(meetingsDir())) {
+    const m = loadMeeting(id)
+    if (!m || m.status !== 'recording') continue
+    const audio = audioPath(id)
+    const seconds = existsSync(audio) ? wavDurationSec(audio) : 0
+    const hasAudio = seconds >= 1
+    out.push(
+      saveMeeting({
+        ...m,
+        status: 'interrupted',
+        durationSec: Math.max(m.durationSec, seconds),
+        endedAt: m.endedAt ?? new Date(statSync(join(meetingsDir(), id, 'meeting.json')).mtime).toISOString(),
+        audioFile: hasAudio ? (m.audioFile ?? 'audio.wav') : undefined
+      })
+    )
+  }
+  return out
 }
 
 export function listMeetings(): MeetingListItem[] {

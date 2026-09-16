@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { getSettings, onSettingsChange } from './settings'
 import { broadcast, currentRecordingState, importAudioPath, isRecording, registerIpc, startRecording, stopRecording } from './ipc'
-import { loadMeeting } from './store'
+import { loadMeeting, recoverInterruptedMeetings } from './store'
 import { MeetingDetector } from './detect/apps'
 import { CalendarService } from './detect/calendar'
 import { sidecar } from './transcription/sidecar'
@@ -197,6 +197,11 @@ app.whenReady().then(() => {
     },
     () => getSettings().detection.notifyMinutesBefore
   )
+
+  // A meeting still marked as recording is left over from a run that never stopped; settle it before the
+  // window opens, so it shows as interrupted rather than pretending to still be recording.
+  const interrupted = recoverInterruptedMeetings()
+  if (interrupted.length) console.log(`recovered ${interrupted.length} interrupted meeting(s)`)
 
   registerIpc({ getWindow: () => mainWindow, showWindow, detector, calendar })
   initUpdater((st) => broadcast('update:status', st), isRecording)

@@ -3,7 +3,7 @@
  * arrive independently with their own sample-accurate timestamps, so we keep a per-channel write cursor and pad with
  * silence where one channel has not delivered audio yet.
  */
-import { closeSync, openSync, writeSync } from 'node:fs'
+import { closeSync, openSync, readSync, statSync, writeSync } from 'node:fs'
 import type { ChannelId } from '../shared/types'
 
 const SAMPLE_RATE = 16000
@@ -22,6 +22,7 @@ interface ChannelBuf {
 export class StereoWavWriter {
   private fd: number
   private frames = 0 // frames written to disk
+  private headerFrames = 0 // frames the length fields on disk currently claim
   private bufs: Record<ChannelId, ChannelBuf> = {
     mic: { seen: false, base: 0, chunks: [], total: 0 },
     system: { seen: false, base: 0, chunks: [], total: 0 }
@@ -30,7 +31,7 @@ export class StereoWavWriter {
 
   constructor(readonly path: string) {
     this.fd = openSync(path, 'w')
-    writeSync(this.fd, this.header(0))
+    writeSync(this.fd, this.header(0), 0, 44, 0)
   }
 
   /** Write a mono PCM16 chunk for a channel positioned at `tMs` since start. */
@@ -91,8 +92,23 @@ export class StereoWavWriter {
         b.base = end
       }
     }
-    writeSync(this.fd, out)
+    // Explicit positions throughout: the header is rewritten in place between data writes, and an implicit
+    // file cursor would be at the mercy of how each platform treats a positional write.
+    writeSync(this.fd, out, 0, out.length, 44 + this.frames * FRAME_BYTES)
     this.frames = end
+    this.syncHeader(final)
+  }
+
+  /**
+   * Bring the length fields in the header up to date, at most once a second. A WAV header written once at the
+   * start says the file holds no audio, and a recording that never reaches close() - a crash, a power cut, the
+   * machine shutting down mid-meeting - would then be an unplayable, un-transcribable file even though every
+   * sample is sitting on the disk.
+   */
+  private syncHeader(force: boolean): void {
+    if (!force && this.frames - this.headerFrames < SAMPLE_RATE) return
+    writeSync(this.fd, this.header(this.frames), 0, 44, 0)
+    this.headerFrames = this.frames
   }
 
   get durationSec(): number {
@@ -103,7 +119,7 @@ export class StereoWavWriter {
     if (this.closed) return
     this.flush(true)
     this.closed = true
-    writeSync(this.fd, this.header(this.frames), 0, 44, 0)
+    this.syncHeader(true)
     closeSync(this.fd)
   }
 
@@ -158,11 +174,36 @@ export function parseWavHeader(buf: Buffer): { sampleRate: number; channels: num
       bits = buf.readUInt16LE(off + 22)
       if (fmt !== 1 || bits !== 16) throw new Error('Only 16-bit PCM WAV is supported')
     } else if (id === 'data') {
-      return { sampleRate, channels, dataOffset: off + 8, dataBytes: Math.min(size, buf.length - off - 8) }
+      const available = buf.length - off - 8
+      // A recording interrupted before its header was finished can claim zero bytes; the samples are there,
+      // so trust the file over the field.
+      return { sampleRate, channels, dataOffset: off + 8, dataBytes: size === 0 ? available : Math.min(size, available) }
     }
     off += 8 + size + (size % 2)
   }
   throw new Error('WAV data chunk not found')
+}
+
+/**
+ * How much audio a WAV on disk actually holds, measured from its size rather than its header. Used to give an
+ * interrupted recording its real length: the meeting record stopped being updated when the app died, but the
+ * audio kept being written up to that moment.
+ */
+export function wavDurationSec(path: string): number {
+  let fd: number | null = null
+  try {
+    const size = statSync(path).size
+    fd = openSync(path, 'r')
+    const head = Buffer.alloc(Math.min(4096, size))
+    readSync(fd, head, 0, head.length, 0)
+    const h = parseWavHeader(head)
+    const bytes = Math.max(0, size - h.dataOffset)
+    return bytes / (h.channels * BYTES_PER_SAMPLE * h.sampleRate)
+  } catch {
+    return 0
+  } finally {
+    if (fd !== null) closeSync(fd)
+  }
 }
 
 export function monoWavBuffer(pcm: Int16Array, sampleRate = SAMPLE_RATE): Buffer {

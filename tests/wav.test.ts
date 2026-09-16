@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { StereoWavWriter, parseWavHeader, monoWavBuffer } from '../src/main/wav'
+import { StereoWavWriter, parseWavHeader, monoWavBuffer, wavDurationSec } from '../src/main/wav'
 
 function tone(n: number, v: number): Int16Array {
   const a = new Int16Array(n)
@@ -37,6 +37,38 @@ describe('StereoWavWriter', () => {
     expect(sample(5000, 1)).toBe(0) // system gap
     expect(sample(13000, 1)).toBe(-100) // system second chunk (812 ms)
     expect(w.durationSec).toBeCloseTo(0.9, 3)
+  })
+
+  it('leaves a playable file behind when the recording never reaches close()', () => {
+    // A crash or a power cut means close() never runs. The header written when the file was created says the
+    // file holds no audio at all, and every second that did reach the disk would be lost with it.
+    const dir = mkdtempSync(join(tmpdir(), 'wav-'))
+    const p = join(dir, 'crash.wav')
+    const w = new StereoWavWriter(p)
+    for (let i = 0; i < 40; i++) w.write('mic', tone(1600, 77), i * 100) // 4 s, 100 ms at a time
+    // deliberately no close()
+    const buf = readFileSync(p)
+    const h = parseWavHeader(buf)
+    expect(h.channels).toBe(2)
+    expect(h.dataBytes / 4 / 16000).toBeGreaterThanOrEqual(3)
+    expect(buf.readInt16LE(h.dataOffset + 30000 * 4)).toBe(77) // audio is really there, not just a length
+    expect(wavDurationSec(p)).toBeGreaterThanOrEqual(3.9)
+  })
+
+  it('reads the audio of a file whose header still claims zero bytes', () => {
+    // Files recorded before the header was kept up to date, and any writer that does the same.
+    const dir = mkdtempSync(join(tmpdir(), 'wav-'))
+    const p = join(dir, 'zero.wav')
+    const w = new StereoWavWriter(p)
+    w.write('mic', tone(16000, 42), 0)
+    w.close()
+    const buf = readFileSync(p)
+    buf.writeUInt32LE(0, 40) // as an interrupted recording used to be left on disk
+    buf.writeUInt32LE(36, 4)
+    writeFileSync(p, buf)
+    const h = parseWavHeader(readFileSync(p))
+    expect(h.dataBytes).toBe(16000 * 4)
+    expect(wavDurationSec(p)).toBeCloseTo(1, 2)
   })
 
   it('writes a valid mono wav buffer', () => {

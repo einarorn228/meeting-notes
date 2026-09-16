@@ -202,6 +202,20 @@ export function MeetingPage({ id, initialTab, initialTime }: Props): ReactNode {
 
       {meeting.status === 'processing' && <Alert tone="info">{t('meeting.processing')}</Alert>}
       {meeting.status === 'error' && <Alert tone="danger">{t('meeting.errorState', { msg: meeting.error ?? '' })}</Alert>}
+      {meeting.status === 'interrupted' && (
+        <Alert
+          tone="warning"
+          action={
+            meeting.audioFile ? (
+              <Button icon="refresh" onClick={() => setRetrans(true)}>
+                {t('meeting.finishTranscript')}
+              </Button>
+            ) : undefined
+          }
+        >
+          {t(meeting.audioFile ? 'meeting.interrupted' : 'meeting.interruptedNoAudio')}
+        </Alert>
+      )}
       {progress && (
         <div style={{ marginBottom: 14 }}>
           <div className="small muted" style={{ marginBottom: 4 }}>

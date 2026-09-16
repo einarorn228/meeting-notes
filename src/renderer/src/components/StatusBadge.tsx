@@ -5,7 +5,7 @@ import { useI18n } from '@/i18n'
 
 export function StatusBadge({ status }: { status: MeetingStatus }): ReactNode {
   const { t } = useI18n()
-  const tone = status === 'done' ? 'success' : status === 'error' ? 'danger' : status === 'recording' ? 'danger' : 'info'
+  const tone = status === 'done' ? 'success' : status === 'error' ? 'danger' : status === 'recording' ? 'danger' : status === 'interrupted' ? 'warning' : 'info'
   return (
     <Badge tone={tone} className={status === 'recording' ? 'pulse' : undefined}>
       {t(`status.${status}`)}

@@ -51,6 +51,7 @@ export const en: Record<TranslationKey, string> = {
   'status.processing': 'Processing',
   'status.done': 'Done',
   'status.error': 'Error',
+  'status.interrupted': 'Interrupted',
 
   'engine.local': 'Local (on this computer)',
   'engine.azure': 'Azure Speech',
@@ -148,6 +149,11 @@ export const en: Record<TranslationKey, string> = {
   'meeting.tagPlaceholder': 'Add tag…',
   'meeting.processing': 'This meeting is still being processed – the transcript updates automatically.',
   'meeting.errorState': 'Processing failed: {msg}',
+  'meeting.interrupted':
+    'This recording stopped unexpectedly – the app closed or the computer shut down before the meeting ended. The audio was kept, so the transcript can still be finished.',
+  'meeting.interruptedNoAudio':
+    'This recording stopped unexpectedly and no audio was kept, so the transcript only holds what had already been written.',
+  'meeting.finishTranscript': 'Finish transcript',
   'meeting.noAudio': 'No audio file',
   'meeting.audioUnavailable': 'The audio file no longer exists',
   'meeting.export': 'Export',
