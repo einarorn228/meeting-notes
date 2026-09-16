@@ -159,6 +159,35 @@ export function speakerNameSuggestions(meetingId: string): string[] {
   return out.slice(0, 24)
 }
 
+/**
+ * Carries a renamed speaker into minutes that were written before the rename.
+ *
+ * The minutes are generated from the transcript as it stood, so a meeting summarised before anyone was named
+ * talks about "Þátttakandi 1" - and kept saying so after the user had put a name to that voice, which reads as
+ * though the app did not notice. Only the app's own placeholder is rewritten (`Þátttakandi 1`, or the raw
+ * `spk1`); a real name is left alone, because a person's name can be an ordinary word somewhere in the text.
+ */
+export function renameInSummary(m: Meeting, from: string, to: string): Meeting {
+  const was = (m.speakerNames[from] ?? from).trim()
+  const name = to.trim()
+  if (!m.summary || !name || !(/^Þátttakandi \d+$/.test(was) || /^spk\d+$/i.test(was)) || was === name) return m
+  // The digit matters: "Þátttakandi 1" must not match inside "Þátttakandi 10".
+  const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${was.replace(/\s+/g, '\\s+')}(?![\\p{L}\\p{N}])`, 'gu')
+  const sub = (text: string): string => text.replace(pattern, name)
+  const s = m.summary
+  return {
+    ...m,
+    summary: {
+      ...s,
+      markdown: sub(s.markdown),
+      title: s.title ? sub(s.title) : s.title,
+      keyPoints: s.keyPoints?.map(sub),
+      decisions: s.decisions?.map(sub),
+      actionItems: s.actionItems?.map((a) => ({ ...a, text: sub(a.text), owner: a.owner ? sub(a.owner) : a.owner }))
+    }
+  }
+}
+
 export function transcriptText(segments: Segment[]): string {
   return segments
     .filter((s) => !s.partial)

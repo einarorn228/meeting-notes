@@ -12,7 +12,7 @@ import { TEMPLATES } from './ai/templates'
 import { writeExport, toHtml } from './export'
 import { getSettings, saveSettings, dataDir } from './settings'
 import { RecordingSession, appLabel } from './session'
-import { audioPath, deleteAudio, deleteMeeting, listMeetings, loadMeeting, meetingDir, newId, saveMeeting, searchMeetings, speakerNameSuggestions, updateMeeting } from './store'
+import { audioPath, deleteAudio, deleteMeeting, listMeetings, loadMeeting, meetingDir, newId, renameInSummary, saveMeeting, searchMeetings, speakerNameSuggestions, updateMeeting } from './store'
 import { createEngine, testEngine } from './transcription'
 import { sidecar } from './transcription/sidecar'
 import { checkForUpdates, getUpdateStatus, installUpdate } from './updater'
@@ -296,7 +296,9 @@ export function registerIpc(ctx: AppContext): void {
     if (!m) throw new Error('Fundur fannst ekki')
     const names = { ...m.speakerNames, [from]: to }
     const participants = Array.from(new Set([...m.participants, to].filter((p) => p && p !== 'Ég' && p !== 'Aðrir')))
-    const next = saveMeeting({ ...m, speakerNames: names, participants })
+    // Minutes written before the name was known still say "Þátttakandi 1"; give them the name too.
+    const withSummary = renameInSummary(m, from, to)
+    const next = saveMeeting({ ...withSummary, speakerNames: names, participants })
     broadcast('meeting:updated', { meetingId: id })
     return next
   })
