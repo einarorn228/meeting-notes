@@ -203,6 +203,9 @@ export async function startCapture(opts: CaptureOptions): Promise<CaptureHandle>
   if (ctx.state !== 'running') await ctx.resume()
 
   levelTimer = window.setInterval(() => {
+    // Sleeping the machine mid-meeting leaves the audio graph suspended on wake, and a suspended graph
+    // delivers nothing at all without ever ending a track. Start it again.
+    if (!stopping && ctx.state === 'suspended') void ctx.resume()
     opts.onLevels?.({ mic: levels.mic, system: levels.system })
     window.fundarritari.reportLevels({ mic: levels.mic, system: levels.system })
   }, 100)

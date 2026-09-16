@@ -12,6 +12,8 @@ interface FakeNode {
 }
 
 const nodes: FakeNode[] = []
+const contexts: { state: string }[] = []
+let resumed = 0
 const pushed: { channel: string; tMs: number }[] = []
 let endTrack: (() => void) | null = null
 let opened = 0
@@ -44,8 +46,10 @@ class FakeStream {
 
 function install(): void {
   nodes.length = 0
+  contexts.length = 0
   pushed.length = 0
   opened = 0
+  resumed = 0
   const g = globalThis as Record<string, unknown>
   g.window = globalThis
   g.AudioContext = class {
@@ -54,8 +58,14 @@ function install(): void {
     createMediaStreamSource(): { connect: () => void; disconnect: () => void } {
       return { connect: () => {}, disconnect: () => {} }
     }
-    async resume(): Promise<void> {}
+    async resume(): Promise<void> {
+      this.state = 'running'
+      resumed++
+    }
     async close(): Promise<void> {}
+    constructor() {
+      contexts.push(this as unknown as { state: string })
+    }
   }
   g.AudioWorkletNode = class {
     port: FakeNode['port'] = { onmessage: null }
@@ -123,6 +133,16 @@ describe('a microphone that disappears mid-meeting', () => {
     // The first frame after the reconnect is placed where the meeting actually is - roughly five seconds in -
     // so the gap is silence in the recording rather than a transcript that runs ahead of the meeting.
     expect(pushed[pushed.length - 1].tMs).toBeGreaterThanOrEqual(2000)
+    await handle.stop()
+  })
+
+  it('starts the audio graph again after the machine has slept', async () => {
+    const { startCapture } = await import('../src/renderer/src/audio/capture')
+    const handle = await startCapture({ captureMic: true, captureSystem: false, echoCancellation: true, noiseSuppression: true })
+    contexts[0].state = 'suspended' // what waking from sleep leaves behind: no samples, and no track ever ends
+    await vi.advanceTimersByTimeAsync(300)
+    expect(resumed).toBeGreaterThan(0)
+    expect(contexts[0].state).toBe('running')
     await handle.stop()
   })
 
