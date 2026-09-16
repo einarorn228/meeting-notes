@@ -128,7 +128,7 @@ Flipar fundarins:
 
 - **Notaðu heyrnartól** (helst með snúru). Þá blandast rödd hinna ekki inn í hljóðnemann þinn og allir fá rétt merki.
 - **Bluetooth-heyrnartól** geta valdið því að „Kerfishljóð“-mælirinn stendur kyrr. Ef það gerist: veldu heyrnartólin sem hljóðúttak í Windows *áður* en fundurinn hefst, eða notaðu hátalara tölvunnar.
-- Skráðu **nöfn fólks og fagorð** undir **Stillingar → Orðaforði** (eitt í hverja línu). Þá eru þau skrifuð rétt.
+- Skráðu **nöfn fólks og fagorð** undir **Stillingar → Orðaforði** (eitt í hverja línu). Þau eru þá skrifuð rétt í uppskriftinni og í fundargerðinni.
 
 ![Orðaforði](img/13-stillingar-ordafordi.png)
 - Fyrsta skiptið sem talgreiningin fer í gang eftir að tölvan er ræst tekur hún um hálfa mínútu að hlaða líkaninu. Ræstu Fundarritara nokkrum mínútum fyrir fund.

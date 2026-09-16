@@ -4,6 +4,11 @@ import { describe, it, expect, vi } from 'vitest'
 // imported, which these tests have no use for - they only reach it through settings.ts asking for a data
 // directory. Three test files racing on that download is how the suite fails for reasons of its own.
 vi.mock('electron', () => ({ app: { getPath: () => '/tmp', isPackaged: false, getVersion: () => '0.0.0' } }))
+
+const settings = vi.hoisted(() => ({
+  llm: { provider: 'anthropic', anthropicApiKey: '', openaiApiKey: '', ollamaUrl: 'http://127.0.0.1:11434' }
+}))
+vi.mock('../src/main/settings', () => ({ getSettings: () => settings, dataDir: () => '/tmp' }))
 import { anthropicRequest, anthropicSupportsEffort, anthropicSupportsSampling } from '../src/main/ai/llm'
 
 const base = { system: 'kerfi', messages: [{ role: 'user' as const, content: 'hæ' }], maxTokens: 16000, temperature: 0.2 }
@@ -37,5 +42,17 @@ describe('Anthropic model capabilities', () => {
     expect(body.system).toEqual([{ type: 'text', text: 'kerfi', cache_control: { type: 'ephemeral' } }])
     expect(body.messages).toEqual([{ role: 'user', content: 'hæ' }])
     expect(body.max_tokens).toBe(16000)
+  })
+})
+
+describe('whether the AI is configured at all', () => {
+  it('counts an empty key as no AI, so a skipped setup does not error after every meeting', async () => {
+    const { llmConfigured } = await import('../src/main/ai/llm')
+    settings.llm = { ...settings.llm, provider: 'anthropic', anthropicApiKey: '   ' }
+    expect(llmConfigured()).toBe(false)
+    settings.llm = { ...settings.llm, anthropicApiKey: 'sk-ant-abc' }
+    expect(llmConfigured()).toBe(true)
+    settings.llm = { ...settings.llm, provider: 'none' }
+    expect(llmConfigured()).toBe(false)
   })
 })

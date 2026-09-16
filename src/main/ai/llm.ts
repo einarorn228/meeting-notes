@@ -87,6 +87,25 @@ function anthropicFailure(err: unknown): Error {
   return err instanceof Error ? err : new Error(String(err))
 }
 
+/**
+ * Whether the chosen AI provider can actually be called. Someone who skipped the AI step, or picked a provider
+ * and never pasted a key, has said no to AI as clearly as choosing "Engin"; the app must not answer every
+ * meeting they record with an error about a missing key.
+ */
+export function llmConfigured(): boolean {
+  const s = getSettings().llm
+  switch (s.provider) {
+    case 'anthropic':
+      return !!s.anthropicApiKey.trim()
+    case 'openai':
+      return !!s.openaiApiKey.trim()
+    case 'ollama':
+      return !!s.ollamaUrl.trim()
+    default:
+      return false
+  }
+}
+
 export async function complete(
   system: string,
   messages: LlmMessage[],

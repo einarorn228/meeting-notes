@@ -232,7 +232,17 @@ export function OnboardingPage(): ReactNode {
               <div className="onb-actions">
                 <Button onClick={back}>{t('common.back')}</Button>
                 <div className="row gap-sm">
-                  <Button variant="ghost" onClick={next}>{t('common.skip')}</Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      // Skipping means no AI, not "Anthropic with no key" - otherwise every meeting ends with
+                      // an error about a missing key from someone who said they did not want this.
+                      update({ llm: { ...settings.llm, provider: 'none' } }, { quiet: true })
+                      next()
+                    }}
+                  >
+                    {t('common.skip')}
+                  </Button>
                   <Button variant="primary" onClick={next}>{t('common.next')} →</Button>
                 </div>
               </div>

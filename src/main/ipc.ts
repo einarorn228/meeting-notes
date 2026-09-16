@@ -7,7 +7,7 @@ import type { ChannelId, ExportRequest, MainEventName, MainEvents, Meeting, Pend
 import { LOCAL_MODELS } from '../shared/types'
 import { chatWithAllMeetings, chatWithMeeting, punctuateMeeting, summarizeMeeting } from './ai/notes'
 import { diarizeMeeting } from './diarize'
-import { testLlm } from './ai/llm'
+import { llmConfigured, testLlm } from './ai/llm'
 import { TEMPLATES } from './ai/templates'
 import { writeExport, toHtml } from './export'
 import { getSettings, saveSettings, dataDir } from './settings'
@@ -86,7 +86,7 @@ async function postProcess(meetingId: string, skipLlm = false): Promise<void> {
         broadcast('transcript:error', { meetingId, message: 'Aðgreining ræðumanna mistókst: ' + (e instanceof Error ? e.message : String(e)) })
       }
     }
-    if (st.llm.provider !== 'none' && !skipLlm) {
+    if (llmConfigured() && !skipLlm) {
       const model = LOCAL_MODELS.find((x) => x.id === m.modelId)
       const needsPunct = m.engine === 'local' && model && !model.punctuated
       if (st.llm.autoPunctuate && needsPunct && !m.punctuated) {
