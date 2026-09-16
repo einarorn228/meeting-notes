@@ -16,6 +16,9 @@ export function speakerLabel(speaker: string | undefined, channel: ChannelId, sp
   if (renamed) return renamed
   if (key === 'mic' || key === 'me' || key === 'Ég' || key === 'Me') return t('common.me')
   if (key === 'system' || key === 'others' || key === 'Aðrir' || key === 'Others') return t('common.others')
+  // A diarization key that never got a name of its own; "spk1" is storage, not something to show anyone.
+  const spk = /^spk(\d+)$/.exec(key)
+  if (spk) return t('speaker.participant', { n: spk[1] })
   return key
 }
 
