@@ -136,6 +136,51 @@ The word count is the same in all three (507 / 502 / 498); what changes is that 
 spoken. Three seconds is what separates two sentences of one turn from two turns - a cut needs 900 ms of quiet
 before it closes at all - so the backlog is still worked down in single calls.
 
+## English spoken inside Icelandic, and why no model setting fixes it
+
+Icelandic meetings are full of English - product names, "up to speed", whole quoted sentences. The recogniser is
+fine-tuned on Icelandic, so it writes them the way they sound: a real recording came back with "vorm kittí" for
+*warm kitty* and "ýkja forritinu" for *the IKEA app*. The obvious first question is whether a different model, or
+Whisper's own language detection, would do better.
+
+Twelve code-switched cuts were built for this: a conversational Spjallrómur utterance, an English phrase from
+LibriSpeech dev-clean, then a short Icelandic utterance, with a third of a second between them. The same twelve
+cuts went through four arms, and the same twelve Icelandic utterances went through each arm alone for the
+accuracy column.
+
+| Model and language | WER, Icelandic alone | Icelandic words back | English words back | Cuts with both |
+|---|---|---|---|---|
+| **Icelandic fine-tune, `is` (what ships)** | **25.5 %** | **70.8 %** | 3.7 % | 0/12 |
+| Icelandic fine-tune, auto-detect | 25.5 % | 70.8 % | 3.7 % | 0/12 |
+| large-v3-turbo, `is` | 48.4 % | 65.3 % | 5.6 % | 1/12 |
+| large-v3-turbo, auto-detect | 48.4 % | 49.9 % | **23.1 %** | 1/12 |
+
+The fine-tune returns 3.7 % of the English - which is to say none of it; what little counts as "back" is short
+words that also exist in the Icelandic. Auto-detect changes nothing at all on it: the output is identical to the
+character, because the model recognises its own language every time.
+
+The multilingual model does hear the English, and that is exactly where the see-saw shows. Whisper decodes one
+language per cut, so what the arm gains in English it loses in Icelandic - 70.8 % down to 49.9 % - and no arm
+manages both at once in more than one cut out of twelve. It is not a matter of degree; it swaps which half of
+the sentence survives:
+
+```
+spoken:      [Icelandic about earthquakes] "Nor is Mister Quilter's manner less interesting than his matter."
+fine-tune:   já við erum að lifa lifa með því hún er mjög æst út í út í fólk sem er svona að þvælast í í í
+             nágrenni við okkur                                        (English: gone without trace)
+turbo, auto: Nor is Mr. Quilter's manner less interesting than his matter.   (Icelandic: gone without trace)
+```
+
+And it costs the Icelandic twice over: 48.4 % WER against 25.5 % on the same twelve utterances, on speech with no
+English in it at all.
+
+So there is no recogniser setting to reach for, and the model picker's descriptions now say so in those numbers.
+What remains is where the app already reads the whole transcript: the pass that restores punctuation is told
+that the recogniser writes foreign words phonetically, and writes them back in their own spelling **when the
+context makes the word unmistakable** - leaving them alone otherwise, because a guess here would be a
+fabrication in the user's own record. The vocabulary list reaches that pass too, which is why English terms
+belong in it (and why they must stay out of the recogniser - see the section above).
+
 ## Recognising a voice from an earlier meeting (not shipped)
 
 If a voice could be recognised again, naming someone once would be enough. Measured with the app's own speaker

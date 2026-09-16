@@ -50,7 +50,9 @@ fillers; meeting speech is usually cleaner.
 
 ## Decisions
 1. **Default local engine:** faster-whisper with the Aalto Whisper large-v3 Icelandic model (Apache-2.0, trained on
-   conversations). Alternative: Reykjavík University 30k-steps model. Generic large-v3/turbo for English.
+   conversations). Alternative: Reykjavík University 30k-steps model. Generic large-v3/turbo for a meeting held in
+   English - but not for a mixed one: Whisper decodes one language per cut, so English inside an Icelandic sentence
+   is not a model choice (measured in docs/research/05-measurements.md). That repair belongs to the AI text pass.
 2. **Real-time cloud engine:** Azure AI Speech is-IS with real-time diarization and phrase lists (custom vocabulary).
 3. **High-quality post-meeting pass:** ElevenLabs Scribe v2 (diarization) or OpenAI gpt-4o-transcribe-diarize.
 4. Speaker attribution always starts from the capture channel (mic = me, system = others).

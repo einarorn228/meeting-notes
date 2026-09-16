@@ -45,7 +45,8 @@ export const LOCAL_MODELS: LocalModelInfo[] = [
     id: 'large-v3-turbo',
     repo: 'deepdml/faster-whisper-large-v3-turbo-ct2',
     label: 'Fjöltyngt – Whisper large-v3-turbo (hratt)',
-    description: 'Fast multilingual OpenAI model. Good for English, weaker for Icelandic.',
+    description:
+      'Fast multilingual OpenAI model. Hears English, but makes about twice the errors on Icelandic conversation as the fine-tuned models (48 % against 26 % on the same utterances). Worth it only for a meeting held mostly in English.',
     languages: ['*'],
     sizeMb: 1600,
     punctuated: true
@@ -54,7 +55,8 @@ export const LOCAL_MODELS: LocalModelInfo[] = [
     id: 'large-v3',
     repo: 'Systran/faster-whisper-large-v3',
     label: 'Fjöltyngt – Whisper large-v3',
-    description: 'Multilingual OpenAI model. Punctuated output, weaker Icelandic than the fine-tuned models.',
+    description:
+      'Multilingual OpenAI model. Punctuated output, and much weaker Icelandic than the fine-tuned models. Note that Whisper decodes one language per cut either way: English inside an Icelandic sentence is not something a model choice solves.',
     languages: ['*'],
     sizeMb: 3100,
     punctuated: true
