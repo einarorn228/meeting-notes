@@ -15,8 +15,8 @@ Notes
   as the alternative instead).
 - Both Icelandic fine-tunes output lowercase text without punctuation; in-segment timestamps of the Aalto model are
   unreliable, so the app relies on its own VAD segmentation for timing.
-- Speaker diarization (sherpa-onnx, pyannote segmentation 3.0 + CAM++ VoxCeleb embeddings): 16 s for the same
-  209 s file on CPU.
+- Speaker diarization (sherpa-onnx, pyannote segmentation 3.0 + ERes2Net VoxCeleb embeddings): 16 s for the same
+  209 s file on CPU. What the thresholds are set to, and why, is in `05-measurements.md`.
 - Sidecar integration test (`pytest --run-slow`): streaming protocol on the first 40 s produced monotonic segments.
 
 ## End-to-end check through the Electron main process (headless)
@@ -25,3 +25,5 @@ channel with VAD chunking and diarizes it: 60 s of Spjallrómur conversation →
 150 s wall-clock on 4 slow CPU cores (no GPU). Sample output:
 `[00:00] Þátttakandi 1: aðgangarréttur var bara steikt upp allt draslið með` /
 `[00:04] Þátttakandi 2: og þarna reyndist reyndist prýðilega gott`.
+(The five speakers in that run were the old clustering finding people who were not there; see
+`05-measurements.md` for the floor that fixed it.)
