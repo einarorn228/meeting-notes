@@ -326,6 +326,28 @@ def test_a_batch_never_exceeds_one_model_window(sink: RecordingSink):
     assert session._take_batch(state) == []
 
 
+def test_a_batch_does_not_span_the_other_speaker_s_turn(sink: RecordingSink):
+    """Merged cuts must stay inside one speaking turn, or the transcript stops reading as a conversation.
+
+    Measured on a real 6:39 call: with a 60 s merge window, 9 of 36 lines spanned more than one model call -
+    one of them 55 s - and each of those swallowed the other side's replies, so the answer was printed before
+    the question. The cuts behind a backlog are worth merging; the silence between two turns is not.
+    """
+    from fundarritari_stt.streaming import Cut, _ChannelState, ChannelStream
+
+    opts = StreamingOptions()
+    session = StreamingSession("s11", language="is", channels=["mic"], vocabulary=[], partials=False,
+                               punctuated=False, engine=FakeEngine(), worker=TranscriptionWorker(sink), emit=sink, opts=opts)
+    state = _ChannelState(stream=ChannelStream(opts))
+    # Two sentences of one turn, then the same speaker again after the other person has had 20 s.
+    for start, end in ((10.0, 12.0), (13.0, 15.0), (35.0, 37.0)):
+        state.queue.append((Cut(kind="final", start=start, end=end, audio=speech(end - start)), f"id{start}"))
+    batch = session._take_batch(state)
+    assert [sid for _, sid in batch] == ["id10.0", "id13.0"], "the two sentences of one turn are merged"
+    assert batch[-1][0].end - batch[0][0].start <= opts.merge_window_s + opts.max_batch_s
+    assert [sid for _, sid in session._take_batch(state)] == ["id35.0"], "the turn after the pause stands alone"
+
+
 def test_the_reported_backlog_counts_waiting_cuts_not_queued_jobs(sink: RecordingSink):
     """The number the app shows must be the speech still waiting for text.
 

@@ -55,8 +55,12 @@ class StreamingOptions:
     # channel are therefore transcribed together, up to this much audio, with a short silence between.
     max_batch_s: float = 22.0
     batch_gap_s: float = 0.3
-    # Cuts further apart than this on the timeline are not merged, so one line never spans a long break.
-    merge_window_s: float = 60.0
+    # Cuts further apart than this on the timeline are not merged. A merged line carries the timestamp of the
+    # first cut and the end of the last, so merging across a pause makes one line cover the other person's
+    # reply, and the transcript prints the answer before the question. Measured on a real 6:39 call: at 60 s,
+    # 9 of 36 lines spanned more than one model call, the worst of them 55 s. Sentences of one turn are what
+    # is worth merging, and those are less than a second or two apart (a cut needs min_silence_ms of quiet).
+    merge_window_s: float = 3.0
 
     def samples(self, seconds: float) -> int:
         return int(round(seconds * self.sample_rate))
