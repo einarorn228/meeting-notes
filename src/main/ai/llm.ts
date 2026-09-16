@@ -58,6 +58,35 @@ function refusalMessage(category?: string | null): string {
   return `Claude hafnaði beiðninni${category ? ` (flokkur: ${category})` : ''}. Þetta gerist stundum ef efni fundarins ræsir öryggissíu. Prófaðu annað sniðmát, styttri kafla, eða aðra þjónustu í Stillingar → Gervigreind.`
 }
 
+/**
+ * Turns an SDK failure into something the user can act on. Without this the app shows the raw SDK message
+ * (`401 {"type":"error",...}`), which says nothing about what to do next.
+ */
+function anthropicFailure(err: unknown): Error {
+  if (err instanceof Anthropic.AuthenticationError) {
+    return new Error('Anthropic hafnaði API lyklinum. Athugaðu hvort hann sé réttur og enn virkur (Stillingar → Gervigreind).')
+  }
+  if (err instanceof Anthropic.PermissionDeniedError) {
+    return new Error('Lykillinn hefur ekki aðgang að þessu líkani. Veldu annað líkan eða lykil með aðgang (Stillingar → Gervigreind).')
+  }
+  if (err instanceof Anthropic.RateLimitError) {
+    return new Error('Of margar beiðnir á Anthropic í bili. Bíddu í mínútu og reyndu aftur.')
+  }
+  if (err instanceof Anthropic.NotFoundError) {
+    return new Error('Líkanið fannst ekki hjá Anthropic. Athugaðu heiti líkansins í stillingum.')
+  }
+  if (err instanceof Anthropic.BadRequestError) {
+    return new Error(`Anthropic hafnaði beiðninni: ${err.message}`)
+  }
+  if (err instanceof Anthropic.APIConnectionError) {
+    return new Error('Náðist ekki samband við Anthropic. Athugaðu nettenginguna.')
+  }
+  if (err instanceof Anthropic.APIError) {
+    return new Error(`Anthropic svaraði villu (${err.status ?? '?'}): ${err.message}`)
+  }
+  return err instanceof Error ? err : new Error(String(err))
+}
+
 export async function complete(
   system: string,
   messages: LlmMessage[],
@@ -71,7 +100,15 @@ export async function complete(
       if (!s.anthropicApiKey) throw new Error('Anthropic API lykil vantar (Stillingar → Gervigreind)')
       const model = s.anthropicModel || 'claude-opus-5'
       const client = new Anthropic({ apiKey: s.anthropicApiKey })
-      const res = await client.messages.create(anthropicRequest({ model, system, messages, maxTokens, temperature, effort: opts.effort }))
+      const params = anthropicRequest({ model, system, messages, maxTokens, temperature, effort: opts.effort })
+      let res: Anthropic.Message
+      try {
+        // Streamed: an hour-long meeting is a large prompt and a long answer, and a non-streaming request of
+        // that size is the one that runs into request timeouts.
+        res = await client.messages.stream(params).finalMessage()
+      } catch (err) {
+        throw anthropicFailure(err)
+      }
       if (res.stop_reason === 'refusal') {
         const details = (res as { stop_details?: { category?: string | null } }).stop_details
         throw new Error(refusalMessage(details?.category))
