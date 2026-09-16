@@ -30,7 +30,8 @@ export class StereoWavWriter {
   private closed = false
 
   constructor(readonly path: string) {
-    this.fd = openSync(path, 'w')
+    // 'w+' rather than 'w': a channel that opens late is written back into frames that are already on disk.
+    this.fd = openSync(path, 'w+')
     writeSync(this.fd, this.header(0), 0, 44, 0)
   }
 
@@ -41,7 +42,7 @@ export class StereoWavWriter {
     const startFrame = Math.round((tMs / 1000) * SAMPLE_RATE)
     if (!b.seen) {
       b.seen = true
-      b.base = Math.max(startFrame, this.frames)
+      b.base = startFrame
     } else {
       const expected = b.base + b.total
       if (startFrame > expected + 80) {
@@ -56,9 +57,35 @@ export class StereoWavWriter {
     this.flush(false)
   }
 
+  /**
+   * Samples belonging to frames that are already on disk. Loopback audio opens a second or two after the
+   * microphone, so its first chunks are timestamped before anything the file has written; appending them would
+   * leave the two sides of the meeting out of step for the whole recording, and out of step with the transcript
+   * that speaker detection is matched against. They are written into their own slots in the frames that are
+   * already there instead.
+   */
+  private backfill(ch: ChannelId, ci: number): void {
+    const b = this.bufs[ch]
+    if (!b.seen || b.total === 0 || b.base >= this.frames) return
+    const data = b.chunks.length === 1 ? b.chunks[0] : concat(b.chunks, b.total)
+    const to = Math.min(this.frames, b.base + b.total)
+    const n = to - b.base
+    if (n > 0) {
+      const region = Buffer.alloc(n * FRAME_BYTES)
+      readSync(this.fd, region, 0, region.length, 44 + b.base * FRAME_BYTES)
+      for (let f = 0; f < n; f++) region.writeInt16LE(data[f], f * FRAME_BYTES + ci * BYTES_PER_SAMPLE)
+      writeSync(this.fd, region, 0, region.length, 44 + b.base * FRAME_BYTES)
+    }
+    const rest = data.subarray(Math.max(0, n))
+    b.chunks = rest.length ? [rest] : []
+    b.total = rest.length
+    b.base = to
+  }
+
   private flush(final: boolean): void {
     const active = (['mic', 'system'] as ChannelId[]).filter((c) => this.bufs[c].seen)
     if (active.length === 0) return
+    for (const [ci, ch] of (['mic', 'system'] as ChannelId[]).entries()) this.backfill(ch, ci)
     const ends = active.map((c) => this.bufs[c].base + this.bufs[c].total)
     let end = final ? Math.max(...ends) : Math.min(...ends)
     if (!final) {

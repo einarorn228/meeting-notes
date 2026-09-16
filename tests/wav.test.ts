@@ -71,6 +71,25 @@ describe('StereoWavWriter', () => {
     expect(wavDurationSec(p)).toBeCloseTo(1, 2)
   })
 
+  it('puts a channel that opened late where it was actually captured', () => {
+    // Loopback audio opens a second or two after the microphone. Appended at the end of what is already
+    // written, everything the other side said would sit that much late for the whole recording - including
+    // against the transcript that speaker detection is matched to.
+    const dir = mkdtempSync(join(tmpdir(), 'wav-'))
+    const p = join(dir, 'late.wav')
+    const w = new StereoWavWriter(p)
+    for (let i = 0; i < 15; i++) w.write('mic', tone(1600, 100), i * 100) // 1.5 s of microphone alone
+    w.write('system', tone(1600, -100), 1200) // the other side, captured at 1.2 s, long after the file started
+    for (let i = 13; i < 25; i++) w.write('system', tone(1600, -100), i * 100)
+    w.close()
+    const buf = readFileSync(p)
+    const h = parseWavHeader(buf)
+    const sample = (frame: number, ch: number): number => buf.readInt16LE(h.dataOffset + frame * 4 + ch * 2)
+    expect(sample(16000 * 1.1, 1)).toBe(0) // silent before it opened
+    expect(sample(16000 * 1.25, 1)).toBe(-100) // and present at 1.2 s, where it was said
+    expect(sample(16000 * 1.25, 0)).toBe(100) // without disturbing the microphone already written there
+  })
+
   it('writes a valid mono wav buffer', () => {
     const b = monoWavBuffer(tone(160, 5))
     const h = parseWavHeader(b)

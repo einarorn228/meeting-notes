@@ -77,11 +77,11 @@ export class RecordingSession extends EventEmitter {
 
   async start(): Promise<void> {
     const s = getSettings()
-    if (s.storage.keepAudio) this.wav = new StereoWavWriter(audioPath(this.meetingId))
-    this.engine = createEngine(s.engine)
     const channels: ChannelId[] = []
     if (s.audio.captureMic) channels.push('mic')
     if (s.audio.captureSystemAudio) channels.push('system')
+    if (s.storage.keepAudio) this.wav = new StereoWavWriter(audioPath(this.meetingId))
+    this.engine = createEngine(s.engine)
     try {
       await this.engine.start(
         { language: this.meeting.language, channels: channels.length ? channels : ['mic', 'system'], vocabulary: s.vocabulary, partials: s.local.partials },
