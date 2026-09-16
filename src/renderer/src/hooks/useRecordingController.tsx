@@ -149,7 +149,8 @@ export function RecordingProvider({ children }: { children: ReactNode }): ReactN
     if (stateRef.current.meetingId && meetingId !== stateRef.current.meetingId) return
     setPending(items)
   })
-  useEvent('transcript:error', ({ message }) => setError(message))
+  // An empty message means the condition it reported is over (the speech service came back), so the line goes away.
+  useEvent('transcript:error', ({ message }) => setError(message || null))
   useEvent('sidecar:status', (s) => setSidecar(s))
 
   const setTitle = useCallback((next: string) => {
