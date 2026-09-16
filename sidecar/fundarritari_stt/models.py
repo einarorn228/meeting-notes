@@ -143,7 +143,7 @@ def download_model(
             emit.emit(
                 "status",
                 state="downloading-model",
-                message=f"Downloading {model_id}",
+                message=f"Sæki líkanið {model_id}",
                 progress=round(progress, 4),
                 model_id=model_id,
             )
@@ -162,9 +162,9 @@ def download_model(
 
         error = outcome.get("error")
         if error is not None:
-            raise RuntimeError(f"download of {repo} failed: {error}") from error  # type: ignore[arg-type]
+            raise RuntimeError(f"Ekki tókst að sækja líkanið {repo}: {error}") from error  # type: ignore[arg-type]
         if not is_installed(target):
-            raise RuntimeError(f"download of {repo} finished but {MODEL_FILE} is missing in {target}")
+            raise RuntimeError(f"Niðurhali {repo} lauk en líkanskrána {MODEL_FILE} vantar í {target}.")
         report(1.0, dir_size_bytes(target))
         log.info("download of %s complete", model_id)
         return target

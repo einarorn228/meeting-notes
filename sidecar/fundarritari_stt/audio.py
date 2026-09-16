@@ -64,7 +64,7 @@ def _load_with_pyav(path: Path) -> Tuple[np.ndarray, int]:
 
     with av.open(str(path)) as container:
         if not container.streams.audio:
-            raise AudioLoadError(f"no audio stream in {path}")
+            raise AudioLoadError(f"Engin hljóðrás í {path}")
         stream = container.streams.audio[0]
         rate = int(stream.rate or SAMPLE_RATE)
         channels = int(getattr(stream, "channels", 0) or 1)
@@ -77,7 +77,7 @@ def _load_with_pyav(path: Path) -> Tuple[np.ndarray, int]:
         for out in resampler.resample(None):
             blocks.append(out.to_ndarray())
     if not blocks:
-        raise AudioLoadError(f"no decodable audio in {path}")
+        raise AudioLoadError(f"Ekkert lesanlegt hljóð í {path}")
     planar = np.concatenate(blocks, axis=1)  # (channels, samples)
     return planar.T.astype(np.float32, copy=False), rate
 
@@ -89,7 +89,7 @@ def load_audio_file(path: str | Path) -> Tuple[np.ndarray, int]:
     """
     p = Path(path)
     if not p.is_file():
-        raise AudioLoadError(f"file not found: {p}")
+        raise AudioLoadError(f"Skráin fannst ekki: {p}")
     errors = []
     try:
         return _load_with_soundfile(p)
@@ -101,4 +101,4 @@ def load_audio_file(path: str | Path) -> Tuple[np.ndarray, int]:
         errors.append("av: PyAV not installed")
     except Exception as exc:  # noqa: BLE001
         errors.append(f"av: {exc}")
-    raise AudioLoadError(f"could not decode {p.name} ({'; '.join(errors)})")
+    raise AudioLoadError(f"Ekki tókst að lesa hljóðskrána {p.name} ({'; '.join(errors)})")

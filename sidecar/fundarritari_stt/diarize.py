@@ -72,7 +72,7 @@ def ensure_models(models_dir: str, emit: Optional[EventSink] = None) -> tuple[st
     from huggingface_hub import hf_hub_download
 
     if emit:
-        emit.emit("status", state="downloading-model", model_id=MODEL_ID, message="Downloading speaker diarization models", progress=0.0)
+        emit.emit("status", state="downloading-model", model_id=MODEL_ID, message="Sæki líkön fyrir raddgreiningu", progress=0.0)
     hf_hub_download(SEGMENTATION_REPO, SEGMENTATION_FILE, local_dir=d)
     if emit:
         emit.emit("progress", model_id=MODEL_ID, progress=0.2, downloaded_mb=6.0, total_mb=32.0)
@@ -105,7 +105,7 @@ def _build(seg: str, emb: str, threshold: float, num_speakers: int, threads: int
             min_duration_off=0.5,
         )
         if not config.validate():
-            raise RuntimeError("invalid diarization configuration (models missing?)")
+            raise RuntimeError("Ræðumannagreining fann ekki líkönin sín.")
         sd = sherpa_onnx.OfflineSpeakerDiarization(config)
         _cache.clear()
         _cache[key] = sd
@@ -278,9 +278,9 @@ def diarize_file(
         try:
             import sherpa_onnx  # noqa: F401
         except ImportError as exc:
-            raise RuntimeError("sherpa-onnx is not installed (pip install sherpa-onnx)") from exc
+            raise RuntimeError("Raddgreining vantar í talgreiningarþjónustuna (sherpa-onnx).") from exc
         seg, emb = ensure_models(models_dir, emit)
-        emit.emit("status", state="ready", model_id=MODEL_ID, message="Diarizing speakers")
+        emit.emit("status", state="ready", model_id=MODEL_ID, message="Greini ræðumenn")
         audio = load_audio(path, channel=channel)
         segments = diarize_audio(audio, seg, emb, threshold=threshold, num_speakers=num_speakers)
         speakers = sorted({s.speaker for s in segments})
@@ -293,4 +293,4 @@ def diarize_file(
         )
     except Exception as exc:  # noqa: BLE001
         log.exception("diarization failed")
-        emit.emit("error", request_id=request_id, message=f"diarization failed: {exc}", fatal=False)
+        emit.emit("error", request_id=request_id, message=f"Ræðumannagreining mistókst: {exc}", fatal=False)

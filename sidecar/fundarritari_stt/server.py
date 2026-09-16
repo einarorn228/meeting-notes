@@ -72,7 +72,7 @@ class Server:
 
     def run(self) -> int:
         """Read commands until ``shutdown`` or EOF. Returns the process exit code."""
-        self._emit.emit("status", state="idle", message="sidecar started")
+        self._emit.emit("status", state="idle", message="Talgreiningarþjónusta ræst")
         while not self._shutdown.is_set():
             try:
                 line = self._stdin.readline()
