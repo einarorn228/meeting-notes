@@ -1,7 +1,9 @@
 """Light, language-agnostic cleanup of model output plus the hallucination guards.
 
-Casing and punctuation are intentionally left alone (the app restores them with an LLM);
-only vocabulary terms get their canonical casing back.
+Full punctuation is the LLM's job. What happens here is the part that needs no model: vocabulary terms get
+their canonical casing back, and a segment from a model that writes no punctuation at all is given a capital
+letter and a full stop, so a meeting transcribed without an AI key reads as sentences rather than as one long
+lowercase mumble.
 """
 
 from __future__ import annotations
@@ -91,13 +93,37 @@ def hallucination_reason(
     return None
 
 
+_SENTENCE_END = ".!?…:;"
+
+
+def sentence_case(text: str) -> str:
+    """Capitalise the first letter and close the segment with a full stop.
+
+    A segment is one run of speech between pauses, which is where a sentence usually ends, so this is a fair
+    guess and a large readability win on models that emit neither capitals nor punctuation. A first word that
+    already carries capitals is left alone: it came from the vocabulary list (``iPhone``, ``SAP``).
+    """
+    if not text:
+        return text
+    head = text.split(" ", 1)[0]
+    if head == head.casefold():
+        text = text[0].upper() + text[1:]
+    if text[-1] not in _SENTENCE_END:
+        text += "."
+    return text
+
+
 def finalize_text(
     raw_text: Optional[str],
     avg_logprob: float,
     no_speech_prob: float,
     vocabulary: Optional[Iterable[object]] = None,
+    punctuated: bool = True,
 ) -> Optional[str]:
-    """Full output pipeline for one segment: guards, cleanup, vocabulary casing.
+    """Full output pipeline for one segment: guards, cleanup, vocabulary casing, sentence shape.
+
+    ``punctuated`` says whether the model writes its own punctuation; when it does not (the Icelandic
+    fine-tunes) the segment is given a capital and a full stop here.
 
     Returns the text to emit, or ``None`` when the segment must be dropped.
     """
@@ -106,4 +132,5 @@ def finalize_text(
     text = clean_text(raw_text)
     if not text:
         return None
-    return apply_vocabulary_casing(text, vocabulary)
+    text = apply_vocabulary_casing(text, vocabulary)
+    return text if punctuated else sentence_case(text)

@@ -1,4 +1,4 @@
-from fundarritari_stt.postprocess import clean_text, collapse_repeats, finalize_text, hallucination_reason
+from fundarritari_stt.postprocess import clean_text, collapse_repeats, finalize_text, hallucination_reason, sentence_case
 
 
 def test_guard_drops_empty():
@@ -38,3 +38,20 @@ def test_finalize_text_pipeline():
     assert finalize_text("halló einar", -0.2, 0.1, ["Einar"]) == "halló Einar"
     assert finalize_text("ha ha ha ha ha ha", -0.2, 0.1) is None
     assert finalize_text("...", -0.2, 0.1) is None
+
+
+def test_a_model_that_writes_no_punctuation_still_produces_sentences():
+    # Without an AI key nothing else ever punctuates this text, and a meeting of lowercase fragments with no
+    # full stops is hard to read and worse to export.
+    assert finalize_text("þetta er fínt", -0.2, 0.1, None, False) == "Þetta er fínt."
+    assert finalize_text("halló einar", -0.2, 0.1, ["Einar"], False) == "Halló Einar."
+    # A model that punctuates its own output is left alone.
+    assert finalize_text("þetta er fínt", -0.2, 0.1, None, True) == "þetta er fínt"
+
+
+def test_sentence_case_leaves_alone_what_it_should():
+    assert sentence_case("hvað segir þú?") == "Hvað segir þú?"
+    assert sentence_case("Ákveðið var að hittast.") == "Ákveðið var að hittast."
+    assert sentence_case("iPhone er dýr") == "iPhone er dýr."  # the vocabulary spelled it, not the model
+    assert sentence_case("SAP kerfið") == "SAP kerfið."
+    assert sentence_case("") == ""

@@ -365,6 +365,7 @@ class StreamingSession:
         self._emit = emit
         self._on_stopped = on_stopped
         self.vocabulary = normalize_vocabulary(vocabulary)
+        self.punctuated = punctuated
         self.initial_prompt = build_initial_prompt(self.vocabulary, language, punctuated)
         self.paused = False
         self.stopping = False
@@ -485,7 +486,7 @@ class StreamingSession:
         result = self._engine.transcribe(
             cut.audio, language=self.language, initial_prompt=self.initial_prompt, beam_size=self.opts.beam_size
         )
-        text = finalize_text(result.text, result.avg_logprob, result.no_speech_prob, self.vocabulary)
+        text = finalize_text(result.text, result.avg_logprob, result.no_speech_prob, self.vocabulary, self.punctuated)
         return text, float(result.avg_logprob), float(result.no_speech_prob)
 
     def _take_batch(self, state: _ChannelState) -> List[Tuple[Cut, str]]:

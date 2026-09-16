@@ -97,7 +97,8 @@ def test_stream_session_flow(server: Server, sink: RecordingSink, fake_engine: F
     seg = segments[0]
     assert seg["session_id"] == "m1" and seg["channel"] == "mic" and seg["partial"] is False
     assert 0.2 <= seg["start"] < seg["end"] <= 3.6
-    assert re.fullmatch(r"Chunk 2\.[2-6]s", seg["text"])  # vocabulary casing on the fake engine's "chunk 2.4s"
+    # vocabulary casing on the fake engine's "chunk 2.4s", plus the full stop a model that writes none gets
+    assert re.fullmatch(r"Chunk 2\.[2-6]s\.", seg["text"])
     assert "avg_logprob" in seg and "no_speech_prob" in seg
     assert sink.events.index(seg) < sink.events.index(stopped)
     assert fake_engine.calls[0]["initial_prompt"] == "fundur nöfn og hugtök chunk"

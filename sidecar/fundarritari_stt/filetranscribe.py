@@ -87,7 +87,7 @@ def transcribe_file(
             result = engine.transcribe(
                 audio[start:end], language=language, initial_prompt=prompt, beam_size=opts.beam_size
             )
-            text = finalize_text(result.text, result.avg_logprob, result.no_speech_prob, vocab)
+            text = finalize_text(result.text, result.avg_logprob, result.no_speech_prob, vocab, punctuated)
             if text is None:
                 continue
             emit.emit(

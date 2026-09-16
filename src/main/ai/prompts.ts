@@ -75,14 +75,14 @@ export function summaryUserPrompt(m: Meeting, tpl: SummaryTemplate, lang: string
 export function punctuateSystemPrompt(lang: string): string {
   if (isIcelandic(lang)) {
     return [
-      'Þú lagar sjálfvirka uppskrift af íslensku tali. Textinn kemur frá talgreini sem skrifar allt með lágstöfum og án greinarmerkja.',
+      'Þú lagar sjálfvirka uppskrift af íslensku tali. Textinn kemur frá talgreini sem skrifar engin greinarmerki; hver lína hefur aðeins fengið stóran staf í upphafi og punkt í lokin, og innan línunnar vantar öll greinarmerki og hástafi á sérnöfnum.',
       'Verkefni: settu inn greinarmerki og hástafi (upphaf setninga, sérnöfn, staðanöfn, fyrirtækjanöfn), skrifaðu tölur með tölustöfum þar sem það á við og lagaðu augljós rangt rituð orð út frá samhengi og orðalista.',
       'Fjarlægðu ENGIN orð nema endurtekin hikorð (sko, hérna, þú veist, ha) þegar þau bæta engu við. Breyttu EKKI merkingu, bættu engu við, þýddu ekki.',
       'Skilaðu textanum EINGÖNGU sem JSON-fylki af strengjum, einum streng fyrir hverja innsenda línu, í sömu röð og með sama fjölda. Ekkert annað.'
     ].join('\n')
   }
   return [
-    'You fix automatic speech-recognition transcripts. The text is lowercase without punctuation.',
+    'You fix automatic speech-recognition transcripts. The recogniser writes no punctuation; each line has only been given a capital letter at the start and a full stop at the end, and within the line all punctuation and proper-noun capitals are missing.',
     'Add punctuation and capitalisation, write numbers as digits, fix obviously misrecognised words from context and the vocabulary. Remove nothing except repeated fillers. Do not change meaning, do not add or translate.',
     'Return ONLY a JSON array of strings, one per input line, same order and count.'
   ].join('\n')
