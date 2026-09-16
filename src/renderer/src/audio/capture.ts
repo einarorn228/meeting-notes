@@ -36,9 +36,10 @@ export interface CaptureHandle {
 
 const SAMPLE_RATE = 16000
 const FRAME = 1600 // 100 ms
-/** How long to keep trying to reopen a channel whose device vanished, and how often to try. */
+/** How long to keep trying to reopen a channel whose device vanished, and how quickly to give up trying often. */
 const RECOVER_FOR_MS = 120000
 const RECOVER_EVERY_MS = 2000
+const RECOVER_SLOWEST_MS = 10000
 
 interface Track {
   channel: ChannelId
@@ -115,8 +116,12 @@ export async function startCapture(opts: CaptureOptions): Promise<CaptureHandle>
     detach(lost)
     opts.onChannelLost?.(lost.channel)
     const deadline = nowMs() + RECOVER_FOR_MS
+    let attempt = 0
     while (!stopping && nowMs() < deadline) {
-      await new Promise((r) => setTimeout(r, RECOVER_EVERY_MS))
+      // Quickly at first - a headset usually comes back within seconds - then less often, because asking the
+      // system for the loopback device is not free.
+      attempt += 1
+      await new Promise((r) => setTimeout(r, Math.min(RECOVER_EVERY_MS * attempt, RECOVER_SLOWEST_MS)))
       if (stopping) return
       let stream: MediaStream | null = null
       try {
