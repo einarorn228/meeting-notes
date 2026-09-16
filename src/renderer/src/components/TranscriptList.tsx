@@ -2,7 +2,7 @@
  * Transcript rows shared by the live recording view and the meeting detail view.
  * Speaker chips: channel 'mic' => "Ég", channel 'system' => "Aðrir" unless renamed via speakerNames.
  */
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { ChannelId, PendingSegment, Segment } from '@shared/types'
 import { mmss } from '@/utils/format'
 import { useI18n, type I18n } from '@/i18n'
@@ -58,7 +58,7 @@ export interface TranscriptListProps {
   emptyText?: ReactNode
 }
 
-export function TranscriptList({ segments, speakerNames, activeId, onSeek, onSpeakerClick, onEdit, query, partials, pending, live, emptyText }: TranscriptListProps): ReactNode {
+function TranscriptListInner({ segments, speakerNames, activeId, onSeek, onSpeakerClick, onEdit, query, partials, pending, live, emptyText }: TranscriptListProps): ReactNode {
   const { t } = useI18n()
   const box = useRef<HTMLDivElement>(null)
   const [stuck, setStuck] = useState(true)
@@ -206,3 +206,10 @@ export function TranscriptList({ segments, speakerNames, activeId, onSeek, onSpe
     </div>
   )
 }
+
+/**
+ * The recording view broadcasts its state once a second (clock, levels, transcript lag), and by the end of an
+ * hour-long meeting the list holds a thousand rows. Re-rendering all of them on every tick competes with the
+ * transcription for the same CPU, so the list only re-renders when the transcript itself changes.
+ */
+export const TranscriptList = memo(TranscriptListInner)
