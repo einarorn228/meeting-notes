@@ -8,6 +8,7 @@ import { spawn, type ChildProcessWithoutNullStreams, execFile } from 'node:child
 import { existsSync, mkdirSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { createInterface } from 'node:readline'
+import { totalmem } from 'node:os'
 import { EventEmitter } from 'node:events'
 import { LOCAL_MODELS, type SidecarStatus } from '../../shared/types'
 import { getSettings } from '../settings'
@@ -110,6 +111,17 @@ export class SidecarManager extends EventEmitter {
     return lines.length ? `\n\nSíðustu skilaboð frá talgreiningarferlinu:\n${lines.join('\n')}` : ''
   }
 
+  /**
+   * The exit code on its own tells the user nothing. The one that matters is the system killing the process for
+   * memory - SIGKILL (137) on Linux/macOS, STATUS_NO_MEMORY on Windows - which is what an 8 GB machine running a
+   * meeting, a browser and a 3 GB model does, and which has an answer: close things, or pick a smaller model.
+   */
+  private exitExplanation(code: number | null, signal: NodeJS.Signals | null): string {
+    if (signal !== 'SIGKILL' && code !== 137 && code !== 3221225495) return ''
+    const gb = Math.round(totalmem() / 1024 ** 3)
+    return ` Tölvan varð líklega minnislaus (hún er með ${gb} GB). Lokaðu öðrum forritum, eða veldu minna líkan í Stillingum → Talgreining.`
+  }
+
   getStatus(): SidecarStatus {
     return { ...this.status, installedModels: this.installedModels() }
   }
@@ -203,11 +215,15 @@ export class SidecarManager extends EventEmitter {
         if (this.stderrTail.length > 40) this.stderrTail.shift()
         this.emit('log', line)
       })
-      proc.on('exit', (code) => {
-        this.emit('log', `sidecar exited with code ${code}`)
+      proc.on('exit', (code, signal) => {
+        this.emit('log', `sidecar exited with code ${code}${signal ? ` (${signal})` : ''}`)
         this.proc = null
         this.loadedModel = null
-        if (code) this.setStatus({ state: 'error', message: `Talgreiningarferlið hætti óvænt (kóði ${code}).${this.crashDetail()}` })
+        if (code || signal)
+          this.setStatus({
+            state: 'error',
+            message: `Talgreiningarferlið hætti óvænt (kóði ${code ?? signal}).${this.exitExplanation(code, signal)}${this.crashDetail()}`
+          })
         else if (this.status.state !== 'error') this.setStatus({ state: 'idle', message: 'Talgreiningarferli lokaði' })
         this.emit('exit', code)
       })
