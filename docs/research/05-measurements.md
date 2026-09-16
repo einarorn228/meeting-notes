@@ -57,6 +57,44 @@ the queue of cuts waiting for text rose and fell all the way through (single dig
 its worst) without trending upwards, and the last cut was written **20 seconds after the stop button**. The
 machine is slower than the speech during bursts and faster than it in the gaps, which is what keeps it bounded.
 
+## Whether the vocabulary list helps the recogniser (it does not)
+
+Settings has a list of names and terms for the meeting. Until 0.1.13 it was handed to Whisper as its
+`initial_prompt`, which is what the Whisper paper says to do and what every other transcription app does. On the
+Icelandic fine-tunes it is close to the worst thing you can do.
+
+30 Spjallrómur utterances that contain a proper noun, each transcribed twice by the app's own engine - once with
+nothing, once with that utterance's own name plus 20 plausible meeting terms in the prompt:
+
+| | WER | The name came out | Time for the 30 |
+|---|---|---|---|
+| **No prompt (now)** | **21.2 %** | **85.7 %** | **246 s** |
+| Name in the prompt (was) | 94.6 % | 23.8 % | 2 059 s |
+
+Both halves of the promise fail at once. The transcript falls apart, and the name the list was there to protect
+is *less* likely to appear than if the list had been empty. The cost is not subtle either: 8× the processing,
+and single four-second utterances taking 145, 153, 176 and 206 seconds.
+
+What goes wrong is visible utterance by utterance. The fine-tunes were trained to emit bare lowercase speech;
+a list of names in front of that is unlike anything in their training, so they drop words and invert meaning -
+
+```
+plain: já já það náttúrulega gengur upp ég skil það nú mjög vel
+vocab: jájá það náttúrulega gengur ekki é skil það nú mjög vel
+
+plain: nei þetta hafði nú verið eitthvað sem var búið að koma fyrir í frystunum í í
+vocab: nei þetta hafði nú verið eitthetta hafði einhver sem var búið að koma fyrir í frystinum í í í
+```
+
+- and often enough to matter they run away repeating the prompt, which trips Whisper's own quality thresholds
+and forces a re-decode at every fallback temperature. That is where the 176-second four-second utterance comes
+from, and on a real meeting it is what a growing backlog and a transcript minutes behind the speech looks like.
+
+So the prompt is gone for any model that writes no punctuation - which is the same line that separates the
+Icelandic fine-tunes from stock Whisper. The list still does the two things that were never at risk: it puts
+the canonical spelling back into the finished text, and it goes to the AI pass, which fixes names from context
+instead of guessing at them mid-decode.
+
 ## Recognising a voice from an earlier meeting (not shipped)
 
 If a voice could be recognised again, naming someone once would be enough. Measured with the app's own speaker
