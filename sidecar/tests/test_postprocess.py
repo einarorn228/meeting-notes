@@ -43,10 +43,10 @@ def test_finalize_text_pipeline():
 def test_a_model_that_writes_no_punctuation_still_produces_sentences():
     # Without an AI key nothing else ever punctuates this text, and a meeting of lowercase fragments with no
     # full stops is hard to read and worse to export.
-    assert finalize_text("þetta er fínt", -0.2, 0.1, None, False) == "Þetta er fínt."
-    assert finalize_text("halló einar", -0.2, 0.1, ["Einar"], False) == "Halló Einar."
-    # A model that punctuates its own output is left alone.
-    assert finalize_text("þetta er fínt", -0.2, 0.1, None, True) == "þetta er fínt"
+    assert finalize_text("þetta er fínt", -0.2, 0.1, None, sentence_case_it=True) == "Þetta er fínt."
+    assert finalize_text("halló einar", -0.2, 0.1, ["Einar"], sentence_case_it=True) == "Halló Einar."
+    # A model that punctuates its own output, and a partial that is not a finished sentence, are left alone.
+    assert finalize_text("þetta er fínt", -0.2, 0.1) == "þetta er fínt"
 
 
 def test_sentence_case_leaves_alone_what_it_should():

@@ -486,7 +486,14 @@ class StreamingSession:
         result = self._engine.transcribe(
             cut.audio, language=self.language, initial_prompt=self.initial_prompt, beam_size=self.opts.beam_size
         )
-        text = finalize_text(result.text, result.avg_logprob, result.no_speech_prob, self.vocabulary, self.punctuated)
+        # A partial is the middle of a sentence still being spoken; a full stop on it would read as finished.
+        text = finalize_text(
+            result.text,
+            result.avg_logprob,
+            result.no_speech_prob,
+            self.vocabulary,
+            sentence_case_it=not self.punctuated and cut.kind == "final",
+        )
         return text, float(result.avg_logprob), float(result.no_speech_prob)
 
     def _take_batch(self, state: _ChannelState) -> List[Tuple[Cut, str]]:

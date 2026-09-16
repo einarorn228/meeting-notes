@@ -118,12 +118,12 @@ def finalize_text(
     avg_logprob: float,
     no_speech_prob: float,
     vocabulary: Optional[Iterable[object]] = None,
-    punctuated: bool = True,
+    sentence_case_it: bool = False,
 ) -> Optional[str]:
     """Full output pipeline for one segment: guards, cleanup, vocabulary casing, sentence shape.
 
-    ``punctuated`` says whether the model writes its own punctuation; when it does not (the Icelandic
-    fine-tunes) the segment is given a capital and a full stop here.
+    ``sentence_case_it`` asks for the capital and the full stop, which is wanted when the model writes no
+    punctuation of its own and this is a finished line rather than a partial one.
 
     Returns the text to emit, or ``None`` when the segment must be dropped.
     """
@@ -133,4 +133,4 @@ def finalize_text(
     if not text:
         return None
     text = apply_vocabulary_casing(text, vocabulary)
-    return text if punctuated else sentence_case(text)
+    return sentence_case(text) if sentence_case_it else text
