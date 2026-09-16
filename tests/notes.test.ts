@@ -1,4 +1,9 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+
+// The real electron package resolves (and, on a fresh CI checkout, downloads) its binary the moment it is
+// imported, which these tests have no use for - they only reach it through settings.ts asking for a data
+// directory. Three test files racing on that download is how the suite fails for reasons of its own.
+vi.mock('electron', () => ({ app: { getPath: () => '/tmp', isPackaged: false, getVersion: () => '0.0.0' } }))
 import { parseSummary } from '../src/main/ai/notes'
 
 const MD = `# Stöðufundur um fjárhagsáætlun
