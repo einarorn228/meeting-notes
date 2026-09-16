@@ -13,6 +13,9 @@ fundarforritinu og skrifar hvort tveggja upp í rauntíma.
 - **Íslensk talgreining sem er sannreynd** – sjálfgefið keyrir fínstillt íslenskt Whisper large-v3 líkan (Aalto-háskóli 2026, þjálfað á Alþingi, Samrómi, Malrómi og *samtölum* úr Spjallrómi) alfarið á tölvunni þinni. Einnig má velja Azure AI Speech (is-IS í rauntíma), ElevenLabs Scribe v2 eða OpenAI.
 - **Allir þátttakendur skráðir** – „Ég“ (hljóðnemi) og hver hinna þátttakendanna fær eigið merki (Þátttakandi 1, 2, 3 …) með ræðumannagreiningu; nöfn má laga með einum smelli. Með Azure fæst aðgreining ræðumanna í rauntíma.
 - **Uppskrift í beinni** með tímastimplum, glósur á meðan fundinum stendur, „Merkja stað“ flýtilykill.
+- **Þolir truflanir** – heyrnartól sem detta út eða tölva sem sofnar stöðva ekki fundinn: rásin er opnuð aftur og
+  það sem tapaðist verður þögn á réttum stað. Hrynji forritið eða slokkni á tölvunni varðveitist hljóðið sem náðist
+  og hægt er að ljúka uppskriftinni eftir á.
 - **Fundargerð með gervigreind** á vandaðri íslensku: samantekt, helstu atriði, ákvarðanir, aðgerðir með ábyrgð og fresti – sniðmát fyrir stöðufundi, viðskiptavinafundi, stjórnarfundi, viðtöl o.fl. (Claude Opus 5 sjálfgefið – efst á íslenska máltæknilistanum í málfræði og beygingum; einnig OpenAI eða Ollama án nettengingar).
 - **Greinarmerki og hástafir lagaðir sjálfkrafa** eftir staðbundna talgreiningu.
 - **Spjall við fundinn** („Hvað var ákveðið um…?“) og leit í öllum fundum.
@@ -20,7 +23,8 @@ fundarforritinu og skrifar hvort tveggja upp í rauntíma.
 - **Fundagreining** – tilkynning þegar Teams/Zoom/Meet er í notkun og þegar fundur í dagatalinu (ICS) er að byrja.
 - **Heilbrigði upptöku** – mælar fyrir hljóðnema og kerfishljóð, viðvörun ef fundarhljóðið berst ekki (algengt með Bluetooth-heyrnartólum).
 - **Útflutningur**: Markdown, Word (.docx), PDF, SRT, texti, JSON. Allt geymt staðbundið á tölvunni.
-- **Orðaforði** – nöfn og fagorð sem talgreinirinn og gervigreindin skrifa rétt.
+- **Orðaforði** – nöfn og fagorð sem talgreinirinn og gervigreindin skrifa rétt. Þegar ræðumaður er nefndur eru
+  nöfnin úr fundarboðinu og af fyrri fundum í boði með einum smelli.
 - Kerfisbakki, flýtilyklar (⌘/Ctrl+Shift+R hefja/stöðva, ⌘/Ctrl+Shift+H merkja stað), tilkynningatexti um upptöku fyrir þátttakendur.
 
 ## Uppsetning
@@ -90,7 +94,9 @@ Zoom, Google Meet, Slack huddles, Webex …) as two separate tracks, transcribes
 fine-tuned Whisper large-v3 model running locally (or Azure AI Speech / ElevenLabs / OpenAI in the cloud),
 separates the remote participants into individual speakers with offline diarization, restores punctuation, and
 writes Icelandic meeting minutes (summary, decisions, action items with owners) with Claude, OpenAI or a local
-Ollama model. Everything is stored locally; export to Markdown, Word, PDF, SRT, text or JSON.
+Ollama model. Everything is stored locally; export to Markdown, Word, PDF, SRT, text or JSON. Interruptions are survivable: a
+capture device that disappears mid-meeting is reopened, a machine that sleeps leaves a gap rather than a shifted
+transcript, and a recording cut short by a crash stays a playable file the transcript can be finished from.
 
 Research behind the engine choices (Icelandic ASR benchmarks, competitor feature analysis, capture technology,
 Icelandic LLM leaderboard) is in `docs/research/`. Build: `npm install && npm run dist:win|mac|linux`. Local
