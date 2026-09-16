@@ -64,6 +64,18 @@ export function RecordingPage(): ReactNode {
 
   const silentSystem = rec.state.silentChannels.includes('system')
   const silentMic = rec.state.silentChannels.includes('mic')
+  // Transcription on a CPU always trails speech by a few seconds; the number only earns screen space once it
+  // is bigger than that, and only counts as a problem when it keeps climbing.
+  const lagSec = Math.round(rec.state.transcriptLagSec)
+  const lag =
+    lagSec < 20
+      ? null
+      : {
+          behind: lagSec >= 120,
+          text: t(lagSec >= 120 ? 'rec.lagBehind' : 'rec.lag', {
+            v: lagSec >= 90 ? t('rec.lagMin', { n: String(Math.round(lagSec / 60)) }) : t('rec.lagSec', { n: String(lagSec) })
+          })
+        }
   const sidecarBusy = rec.sidecar && ['installing', 'loading-model', 'downloading-model'].includes(rec.sidecar.state)
 
   return (
@@ -126,6 +138,7 @@ export function RecordingPage(): ReactNode {
         <section className="rec-pane">
           <div className="rec-pane-header">
             <span>{t('rec.liveTranscript')}</span>
+            {lag && <span className={`lag-chip${lag.behind ? ' behind' : ''}`}>{lag.text}</span>}
             <span className="engine-status">{sidecarBusy ? rec.sidecar?.message : rec.state.engineStatus || t('rec.engineStarting')}</span>
           </div>
           <TranscriptList segments={rec.segments} partials={rec.partials} pending={rec.pending} live emptyText={t('rec.waiting')} />

@@ -39,7 +39,7 @@ export function broadcast<K extends MainEventName>(event: K, payload: MainEvents
 }
 
 function idleState(): RecordingState {
-  return { active: false, elapsedSec: 0, engineStatus: '', levels: { mic: 0, system: 0 }, silentChannels: [], paused: false }
+  return { active: false, elapsedSec: 0, engineStatus: '', levels: { mic: 0, system: 0 }, silentChannels: [], paused: false, transcriptLagSec: 0 }
 }
 
 export async function startRecording(ctx: AppContext, opts: { title?: string; language?: string; app?: string; calendarEventId?: string }): Promise<{ meetingId: string }> {

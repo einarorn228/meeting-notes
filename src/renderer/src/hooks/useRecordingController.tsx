@@ -57,7 +57,8 @@ const IDLE: RecordingState = {
   engineStatus: '',
   levels: { mic: 0, system: 0 },
   silentChannels: [],
-  paused: false
+  paused: false,
+  transcriptLagSec: 0
 }
 
 const RecordingContext = createContext<RecordingController | null>(null)

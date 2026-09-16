@@ -87,15 +87,22 @@ describe('pending speech in the live transcript', () => {
     expect(calls.segments).toEqual([])
   })
 
-  it('says once when the machine stops keeping up, and takes it back when it catches up', async () => {
+  it('leaves the status line alone while cuts queue up, however many there are', async () => {
     const { calls, emit } = await startEngine()
-    const ready = calls.statuses[calls.statuses.length - 1]
+    const before = calls.statuses.length
 
     for (const queue of [1, 3, 6, 7, 8]) emit({ type: 'pending', seg_id: `q${queue}`, channel: 'mic', start: queue, end: queue + 1, queue })
-    const warnings = calls.statuses.filter((s) => s.includes('hefur ekki undan'))
-    expect(warnings).toHaveLength(1)
 
-    emit({ type: 'pending', seg_id: 'q-last', channel: 'mic', start: 20, end: 21, queue: 1 })
-    expect(calls.statuses[calls.statuses.length - 1]).toBe(ready)
+    // A handful of cuts in flight is what a healthy machine looks like - measured over an hour of Icelandic
+    // conversation, 5 to 12 were always waiting while text stayed ~13 s behind speech. How far behind the
+    // transcript actually is gets shown in seconds instead (RecordingState.transcriptLagSec).
+    expect(calls.statuses.slice(before)).toEqual([])
+    expect(calls.pending).toHaveLength(5)
+  })
+
+  it('still reports the shrinking backlog after the stop button', async () => {
+    const { calls, emit } = await startEngine()
+    emit({ type: 'finishing', pending: 4 })
+    expect(calls.statuses[calls.statuses.length - 1]).toContain('4')
   })
 })

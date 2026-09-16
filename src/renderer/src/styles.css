@@ -231,7 +231,7 @@ mark { background: #ffe58a; color: #111; border-radius: 3px; padding: 0 1px; }
 .rec-body { flex: 1; display: grid; grid-template-columns: minmax(280px, 2fr) minmax(360px, 3fr); min-height: 0; }
 .rec-pane { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--border); }
 .rec-pane:last-child { border-right: 0; }
-.rec-pane-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; background: var(--panel); }
+.rec-pane-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; background: var(--panel); }
 .rec-notes { flex: 1; border: 0; border-radius: 0; resize: none; padding: 16px; font-size: 14px; line-height: 1.6; background: var(--panel); }
 .rec-notes:focus { box-shadow: none; }
 .rec-footer { display: flex; align-items: center; gap: 12px; padding: 10px 22px; border-top: 1px solid var(--border); background: var(--panel); flex-wrap: wrap; }
@@ -339,3 +339,7 @@ mark { background: #ffe58a; color: #111; border-radius: 3px; padding: 0 1px; }
 .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); }
 .modal-body { padding: 18px; overflow: auto; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--border); }
+
+/* How far the transcript trails the talking, shown while recording. */
+.lag-chip { margin-left: auto; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 500; color: var(--muted); background: var(--bg); white-space: nowrap; }
+.lag-chip.behind { color: var(--warning); background: var(--warning-soft); }

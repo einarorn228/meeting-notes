@@ -161,6 +161,16 @@ export class RecordingSession extends EventEmitter {
   }
 
   /** Cuts announced by the engine that have no text yet (for a view that opens mid-recording). */
+  /**
+   * Seconds between what has been said and what has been written. A large model on a CPU is slower than
+   * speech, so this is never zero; what matters to the user is whether it stays small or keeps growing.
+   */
+  private transcriptLagSec(): number {
+    const oldest = this.pending[0]
+    if (!oldest) return 0
+    return Math.max(0, this.elapsedSec() - oldest.end)
+  }
+
   getPending(): PendingSegment[] {
     return [...this.pending]
   }
@@ -212,7 +222,8 @@ export class RecordingSession extends EventEmitter {
       engineStatus: this.engineStatus,
       levels: this.levels,
       silentChannels: silent,
-      paused: this.paused
+      paused: this.paused,
+      transcriptLagSec: this.transcriptLagSec()
     }
   }
 

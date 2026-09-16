@@ -86,3 +86,20 @@ describe('meeting length', () => {
     expect(Math.round(saved.at(-1)!.durationSec)).toBe(174)
   })
 })
+
+describe('how far the transcript trails the talking', () => {
+  it('measures from the oldest cut still waiting, and clears when the text lands', async () => {
+    const s = await record(60)
+    expect(s.getState().transcriptLagSec).toBe(0) // nothing waiting
+
+    engine.cb.onPending?.({ id: 'p1', channel: 'mic', start: 40, end: 45, queue: 1 })
+    engine.cb.onPending?.({ id: 'p2', channel: 'mic', start: 50, end: 55, queue: 2 })
+    // The clock is at 60 s of audio and the oldest waiting cut ended at 45 s.
+    expect(s.getState().transcriptLagSec).toBeCloseTo(15, 0)
+
+    engine.cb.onPendingDone?.('p1')
+    expect(s.getState().transcriptLagSec).toBeCloseTo(5, 0)
+    engine.cb.onPendingDone?.('p2')
+    expect(s.getState().transcriptLagSec).toBe(0)
+  })
+})

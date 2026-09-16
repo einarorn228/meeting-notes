@@ -233,6 +233,8 @@ export interface RecordingState {
   levels: { mic: number; system: number }
   silentChannels: ChannelId[]
   paused: boolean
+  /** How many seconds the transcript is behind the speech, from the oldest cut still waiting for its text. */
+  transcriptLagSec: number
 }
 
 export interface DetectedMeeting {
