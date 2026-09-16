@@ -90,6 +90,11 @@ vocab: nei þetta hafði nú verið eitthetta hafði einhver sem var búið að 
 and forces a re-decode at every fallback temperature. That is where the 176-second four-second utterance comes
 from, and on a real meeting it is what a growing backlog and a transcript minutes behind the speech looks like.
 
+It is not about whether the name is in the audio either. On utterances with no proper nouns at all, the same
+plausible-but-irrelevant list does the same damage: over the first three utterances of that set, 13.5 % WER and
+6-11 s each without it, 105.8 % WER and 116-219 s each with it. (That arm was stopped after three; at two
+minutes an utterance it had already answered the question.)
+
 So the prompt is gone for any model that writes no punctuation - which is the same line that separates the
 Icelandic fine-tunes from stock Whisper. The list still does the two things that were never at risk: it puts
 the canonical spelling back into the finished text, and it goes to the AI pass, which fixes names from context
