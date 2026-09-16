@@ -363,6 +363,11 @@ class StreamingSession:
         self.initial_prompt = build_initial_prompt(self.vocabulary, language, punctuated)
         self.paused = False
         self.stopping = False
+        # Cuts announced to the app whose text has not come back yet. This is the backlog the user sees as
+        # placeholder rows; the worker's job count is not it, because batching leaves behind jobs whose cuts
+        # a previous job already took (measured: 34 jobs queued while 10 cuts were actually waiting).
+        self._open = 0
+        self._open_lock = threading.Lock()
         self._channels: Dict[str, _ChannelState] = {}
         for channel in channels or ("mic",):
             self._channel(str(channel))
@@ -409,8 +414,8 @@ class StreamingSession:
 
         def run() -> None:
             last = -1
-            while True:
-                pending = self._worker.pending()
+            while self._worker.alive:
+                pending = self.backlog()
                 if pending <= 0:
                     return
                 if pending != last:
@@ -419,6 +424,11 @@ class StreamingSession:
                 time.sleep(1.0)
 
         threading.Thread(target=run, name="stt-drain-progress", daemon=True).start()
+
+    def backlog(self) -> int:
+        """How many announced cuts are still waiting for their text."""
+        with self._open_lock:
+            return self._open
 
     # -- internals ----------------------------------------------------------------------------
 
@@ -429,6 +439,8 @@ class StreamingSession:
                 with state.lock:
                     state.generation += 1
                     state.queue.append((cut, seg_id))
+                with self._open_lock:
+                    self._open += 1
                 self._worker.submit(
                     Job(
                         run=lambda channel=channel, state=state: self._transcribe_queued(channel, state),
@@ -446,7 +458,7 @@ class StreamingSession:
                     seg_id=seg_id,
                     start=round(cut.start, 3),
                     end=round(cut.end, 3),
-                    queue=self._worker.pending(),
+                    queue=self.backlog(),
                 )
             else:
                 with state.lock:
@@ -539,6 +551,9 @@ class StreamingSession:
 
     def _emit_segment(self, channel: str, cut: Cut, seg_id: str, text: str, avg_logprob: float, no_speech_prob: float) -> None:
         """Emit one final segment. Empty ``text`` means "nothing was said here" and only closes the placeholder."""
+        if seg_id:
+            with self._open_lock:
+                self._open = max(0, self._open - 1)
         self._emit.emit(
             "segment",
             session_id=self.session_id,

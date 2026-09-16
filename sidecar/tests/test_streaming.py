@@ -321,3 +321,37 @@ def test_a_batch_never_exceeds_one_model_window(sink: RecordingSink):
     assert [sid for _, sid in first] == ["id0", "id1", "id2"], "3 + 0.5 + 3 + 0.5 + 3 = 10 s fits; a fourth would not"
     assert len(session._take_batch(state)) == 3
     assert session._take_batch(state) == []
+
+
+def test_the_reported_backlog_counts_waiting_cuts_not_queued_jobs(sink: RecordingSink):
+    """The number the app shows must be the speech still waiting for text.
+
+    Every cut submits a job, but a batch transcribes several cuts at once, so the jobs left behind find their
+    cuts already taken and return immediately. Counting jobs therefore overstates the backlog badly - measured
+    on an hour-long simulation: 34 jobs queued while only 10 cuts were actually waiting - and that number
+    drives both the "not keeping up" warning and the post-stop progress.
+    """
+    engine = FakeEngine(delay=0.4)
+    worker = TranscriptionWorker(sink).start()
+    try:
+        session = StreamingSession("s10", language="is", channels=["mic"], vocabulary=[], partials=False,
+                                   punctuated=False, engine=engine, worker=worker, emit=sink)
+        audio = np.concatenate([silence(0.3)] + [np.concatenate([speech(1.2), silence(0.9)]) for _ in range(5)])
+        session.feed("mic", 0, audio)
+        announced = sink.of_type("pending")
+        assert len(announced) == 5
+        # While the worker is behind, each announcement reports the cuts waiting, which can never exceed the
+        # number announced so far.
+        assert [e["queue"] for e in announced] == [1, 2, 3, 4, 5]
+        assert worker.pending() >= session.backlog()
+
+        session.stop()
+        sink.wait_for(lambda e: e["type"] == "stopped", timeout=20)
+        assert session.backlog() == 0
+        assert _unclosed(sink) == []
+        # The drain progress shrinks towards zero and never claims more work than there were cuts.
+        drain = [e["pending"] for e in sink.of_type("finishing")]
+        assert all(0 < p <= 5 for p in drain), drain
+        assert drain == sorted(drain, reverse=True), drain
+    finally:
+        worker.stop()

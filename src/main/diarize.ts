@@ -57,9 +57,13 @@ export async function diarizeMeeting(meetingId: string, progress: (stage: string
   const m = loadMeeting(meetingId)
   if (!m || (!opts.force && !needsDiarization(m))) return m
   const path = audioPath(meetingId)
-  if (!existsSync(path)) return m
+  // A user who pressed "Ræðumenn…" gets an answer either way: silently doing nothing reads as a broken button.
+  if (!existsSync(path)) {
+    if (opts.force) throw new Error('Hljóðupptaka fundarins er ekki geymd, svo ekki er hægt að greina ræðumenn eftir á. Kveiktu á „Geyma hljóðskrár“ í stillingum fyrir næstu fundi.')
+    return m
+  }
   const s = getSettings()
-  if (!s.local.diarize) return m
+  if (!s.local.diarize && !opts.force) return m
   progress('diarize')
   await sidecar.ensureStarted()
   const requestId = randomUUID()

@@ -29,7 +29,7 @@ object (an *event*). stderr is free-form logging. Audio is PCM16 little-endian m
 | `models` | `installed` (list of ids) |
 | `model_downloaded` | `model_id` |
 | `model_loaded` | `model_id`, `device`, `compute_type`, `load_seconds` |
-| `pending` | `session_id`, `channel`, `seg_id`, `start` (s), `end` (s), `queue` (jobs waiting) - a cut was queued; its text follows in a `segment` with the same `seg_id` |
+| `pending` | `session_id`, `channel`, `seg_id`, `start` (s), `end` (s), `queue` (cuts still waiting for text) - a cut was queued; its text follows in a `segment` with the same `seg_id` |
 | `segment` | `session_id` or `request_id`, `channel`, `seg_id` (streaming only), `start` (s), `end` (s), `text` (empty = nothing was said, closes the `pending`), `partial` (bool), `avg_logprob`, `no_speech_prob` |
 | `partial` | `session_id`, `channel`, `start`, `text` |
 | `stopped` | `session_id` |
