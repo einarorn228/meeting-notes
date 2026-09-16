@@ -9,7 +9,7 @@ export class LocalEngine implements TranscriptionEngine {
   readonly id = 'local'
   private sessionId = ''
   private cb: EngineCallbacks | null = null
-  /** The status shown while recording; the post-stop progress replaces it and this restores it. */
+  /** The status line shown once the model is loaded and the session is running. */
   private readyStatus = ''
   private listener: ((ev: SidecarEvent) => void) | null = null
 
