@@ -223,13 +223,15 @@ fallback on, 200 ms of recorded audio either side of the cut):
 | 0.5 s of silence appended to the cut | 21.8 % | 93.3 % | 31 | 1.43× |
 | 1.0 s appended | 21.7 % | 93.1 % | 31 | 1.43× |
 | 0.3 s prepended and 1.0 s appended | 22.7 % | 93.7 % | – | 1.43× |
-| float32 instead of int8 | see below | | | |
+| float32 instead of int8 | 22.3 % | 92.4 % | – | 2.77× |
 
 Beam 8 changes nothing; greedy costs a point for 20 % of the time back. The fallback never fires on clean
 speech - the output without it is byte-identical in all sixty utterances - so it is neither the cause of the
 dropped tails nor a cure. Silence after the cut brings back two of the 33 tail deletions, which is inside the
-noise of 840 words, and silence before the cut costs more than that. The recogniser is where it is: the
-remaining errors are not a knob on the decoder.
+noise of 840 words, and silence before the cut costs more than that. Full-precision arithmetic changes the
+text of 7 utterances in 52 and the error rate not at all, at twice the time - so the int8 the app runs on
+every CPU is not what is costing accuracy, and a GPU would buy speed, not words. The recogniser is where it
+is: the remaining errors are not a knob on the decoder.
 
 ## What the user's corrections teach the app
 
