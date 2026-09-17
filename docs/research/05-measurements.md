@@ -209,6 +209,28 @@ the model stops, not of what it heard. And the next largest is near misses of in
 errors a reader of the whole sentence fixes without hearing the audio, which is what the AI pass is for, and
 why the user's corrections now go to it (below).
 
+## What the decoder's own settings are worth (nothing)
+
+The same 52 clean utterances, one setting changed at a time from what ships (beam 5, int8, temperature
+fallback on, 200 ms of recorded audio either side of the cut):
+
+| Setting | WER | Words returned | Tail deletions | Time |
+|---|---|---|---|---|
+| **As shipped** | **22.0 %** | 92.7 % | 33 | 1.46× real time |
+| Beam 1 (greedy) | 23.1 % | 93.5 % | 32 | 1.16× |
+| Beam 8 | 22.0 % | 92.6 % | 33 | 1.48× |
+| No temperature fallback | 22.0 % | 92.7 % | 33 | 1.41× |
+| 0.5 s of silence appended to the cut | 21.8 % | 93.3 % | 31 | 1.43× |
+| 1.0 s appended | 21.7 % | 93.1 % | 31 | 1.43× |
+| 0.3 s prepended and 1.0 s appended | 22.7 % | 93.7 % | – | 1.43× |
+| float32 instead of int8 | see below | | | |
+
+Beam 8 changes nothing; greedy costs a point for 20 % of the time back. The fallback never fires on clean
+speech - the output without it is byte-identical in all sixty utterances - so it is neither the cause of the
+dropped tails nor a cure. Silence after the cut brings back two of the 33 tail deletions, which is inside the
+noise of 840 words, and silence before the cut costs more than that. The recogniser is where it is: the
+remaining errors are not a knob on the decoder.
+
 ## What the user's corrections teach the app
 
 The recogniser cannot be taught a word (the vocabulary section above), but the app can remember what the user
