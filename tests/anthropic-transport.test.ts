@@ -166,6 +166,8 @@ describe('tidying the transcript before it is read', () => {
         vocabulary: [], language: 'is'
       })
     }))
+    // What the user fixed by hand last time is the best hint there is for the same mishearing this time.
+    vi.doMock('../src/main/corrections', () => ({ correctionsForPrompt: () => [{ from: 'vorm kittí', to: 'warm kitty' }] }))
     const { punctuateMeeting } = await import('../src/main/ai/notes')
 
     sent.length = 0
@@ -177,6 +179,7 @@ describe('tidying the transcript before it is read', () => {
     const user = String((sent[0].messages as { content: string }[])[0].content)
     expect(user).toContain('Fundur: Húshönnun í IKEA')
     expect(user).toContain('Þátttakendur: Aníta')
+    expect(user).toContain('„vorm kittí“ → „warm kitty“')
     expect(out.segments.map((s) => s.text)).toEqual(['Ég var að fá IKEA-húsið.', 'Já, einmitt.'])
     expect(out.punctuated).toBe(true)
   })

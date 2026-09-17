@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import type { EngineId, LlmProviderId, Settings, SidecarStatus, SummaryTemplate } from '@shared/types'
+import type { Correction, EngineId, LlmProviderId, Settings, SidecarStatus, SummaryTemplate } from '@shared/types'
 import { LOCAL_MODELS } from '@shared/types'
 import { api } from '@/api'
 import { useI18n } from '@/i18n'
@@ -417,12 +417,38 @@ function VocabularySection(): ReactNode {
   const { settings, update } = useSettings()
   const [text, setText] = useState(settings.vocabulary.join('\n'))
   useEffect(() => setText(settings.vocabulary.join('\n')), [settings.vocabulary])
+  const [corrections, setCorrections] = useState<Correction[]>([])
+  useEffect(() => {
+    void api.listCorrections().then(setCorrections)
+  }, [])
   return (
-    <Card title={t('settings.vocab.title')}>
-      <p className="muted">{t('settings.vocab.hint')}</p>
-      <TextArea rows={14} value={text} placeholder={t('settings.vocab.placeholder')} onChange={(e) => setText(e.target.value)} onBlur={() => update({ vocabulary: text.split('\n').map((x) => x.trim()).filter(Boolean) })} />
-      <div className="field-hint">{t('settings.vocab.count', { n: text.split('\n').filter((x) => x.trim()).length })}</div>
-    </Card>
+    <>
+      <Card title={t('settings.vocab.title')}>
+        <p className="muted">{t('settings.vocab.hint')}</p>
+        <TextArea rows={14} value={text} placeholder={t('settings.vocab.placeholder')} onChange={(e) => setText(e.target.value)} onBlur={() => update({ vocabulary: text.split('\n').map((x) => x.trim()).filter(Boolean) })} />
+        <div className="field-hint">{t('settings.vocab.count', { n: text.split('\n').filter((x) => x.trim()).length })}</div>
+      </Card>
+      <Card title={t('settings.corrections.title')}>
+        <p className="muted">{t('settings.corrections.hint')}</p>
+        {corrections.length === 0 ? (
+          <div className="muted small">{t('settings.corrections.empty')}</div>
+        ) : (
+          <div className="stack gap-sm">
+            {corrections.map((c) => (
+              <div key={c.from} className="row gap-sm" style={{ alignItems: 'center' }}>
+                <span style={{ flex: 1 }}>
+                  „{c.from}“ → <strong>{c.to}</strong>
+                </span>
+                <Badge>{t('settings.corrections.times', { n: c.count })}</Badge>
+                <Button size="sm" variant="ghost" icon="x" onClick={() => void api.forgetCorrection(c.from).then(setCorrections)}>
+                  {t('settings.corrections.forget')}
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </>
   )
 }
 

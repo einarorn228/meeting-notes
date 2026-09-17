@@ -3,6 +3,7 @@ import type {
   AudioDeviceInfo,
   CalendarEvent,
   ChannelId,
+  Correction,
   DetectedMeeting,
   ExportRequest,
   MainEventName,
@@ -46,6 +47,9 @@ export interface FundarritariApi {
   /** Names to offer when naming a speaker: this meeting's invitees, then names used in earlier meetings. */
   speakerSuggestions(meetingId: string): Promise<string[]>
   updateSegment(meetingId: string, segmentId: string, patch: { text?: string; speaker?: string }): Promise<Meeting>
+  /** What the user has corrected in transcripts so far, most often made first. */
+  listCorrections(): Promise<Correction[]>
+  forgetCorrection(from: string): Promise<Correction[]>
   getAudioUrl(meetingId: string): Promise<string | null>
   importAudioFile(): Promise<{ meetingId: string } | null>
   retranscribe(meetingId: string, opts?: { engine?: string; language?: string }): Promise<void>
@@ -125,6 +129,8 @@ const api: FundarritariApi = {
   renameSpeaker: (meetingId, from, to) => invoke('meetings:renameSpeaker', meetingId, from, to),
   speakerSuggestions: (meetingId) => invoke('meetings:speakerSuggestions', meetingId),
   updateSegment: (meetingId, segmentId, patch) => invoke('meetings:updateSegment', meetingId, segmentId, patch),
+  listCorrections: () => invoke('corrections:list'),
+  forgetCorrection: (from) => invoke('corrections:forget', from),
   getAudioUrl: (id) => invoke('meetings:audioUrl', id),
   importAudioFile: () => invoke('meetings:importAudio'),
   retranscribe: (id, opts) => invoke('meetings:retranscribe', id, opts),

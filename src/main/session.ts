@@ -6,6 +6,7 @@
 import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
 import type { ChannelId, Highlight, Meeting, PendingSegment, RecordingState, Segment } from '../shared/types'
+import { applyCorrections } from './corrections'
 import { getSettings } from './settings'
 import { audioPath, newId, saveMeeting, updateMeeting, loadMeeting } from './store'
 import { createEngine } from './transcription'
@@ -178,6 +179,7 @@ export class RecordingSession extends EventEmitter {
 
   private addSegment(seg: EngineSegment): void {
     const s = toSegment(seg.id ?? randomUUID(), seg)
+    s.text = applyCorrections(s.text)
     // Keep transcript ordered by start time (channels arrive independently).
     const segs = this.meeting.segments
     let i = segs.length

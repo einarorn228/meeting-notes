@@ -50,7 +50,20 @@ export function summarySystemPrompt(lang: string): string {
   ].join('\n')
 }
 
-export function summaryUserPrompt(m: Meeting, tpl: SummaryTemplate, lang: string, vocabulary: string[]): string {
+/**
+ * The mishearings this user has already fixed by hand, as one line for the model - or nothing. They are the
+ * best evidence there is of what this user's meetings sound like to the recogniser, and they are the user's
+ * own words, so the model is told to reuse them rather than to guess afresh.
+ */
+export function correctionsLine(corrections: { from: string; to: string }[], lang: string): string {
+  if (!corrections.length) return ''
+  const pairs = corrections.map((c) => `„${c.from}“ → „${c.to}“`).join(', ')
+  return isIcelandic(lang)
+    ? `Leiðréttingar notandans á fyrri uppskriftum (talgreinirinn skrifaði → rétt) - skrifaðu það sama þar sem sama villan kemur fyrir: ${pairs}`
+    : `The user's corrections to earlier transcripts (recogniser wrote → correct) - write the same where the same error recurs: ${pairs}`
+}
+
+export function summaryUserPrompt(m: Meeting, tpl: SummaryTemplate, lang: string, vocabulary: string[], corrections: { from: string; to: string }[] = []): string {
   const ic = isIcelandic(lang)
   const sections = ic ? tpl.sections.is : tpl.sections.en
   const parts: string[] = []
@@ -59,6 +72,7 @@ export function summaryUserPrompt(m: Meeting, tpl: SummaryTemplate, lang: string
   parts.push(ic ? `Lengd: ${formatTime(m.durationSec)}` : `Duration: ${formatTime(m.durationSec)}`)
   if (m.participants.length) parts.push((ic ? 'Þátttakendur: ' : 'Participants: ') + m.participants.join(', '))
   if (vocabulary.length) parts.push((ic ? 'Orðalisti (rétt rituð nöfn og hugtök): ' : 'Vocabulary (correct spellings): ') + vocabulary.join(', '))
+  if (corrections.length) parts.push(correctionsLine(corrections, lang))
   if (m.notes.trim()) parts.push((ic ? 'Glósur fundarritara (mikilvægar, fléttaðu þær inn):\n' : "Note-taker's own notes (important, weave them in):\n") + m.notes.trim())
   if (m.highlights.length) parts.push((ic ? 'Merktir staðir í upptöku: ' : 'Marked moments: ') + m.highlights.map((h) => `${formatTime(h.time)}${h.note ? ' ' + h.note : ''}`).join('; '))
   parts.push('')

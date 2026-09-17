@@ -56,3 +56,35 @@ fillers; meeting speech is usually cleaner.
 2. **Real-time cloud engine:** Azure AI Speech is-IS with real-time diarization and phrase lists (custom vocabulary).
 3. **High-quality post-meeting pass:** ElevenLabs Scribe v2 (diarization) or OpenAI gpt-4o-transcribe-diarize.
 4. Speaker attribution always starts from the capture channel (mic = me, system = others).
+
+## Could the model be trained on the user's own meetings? (Sept 2026)
+
+The honest answer is "not the shipping model, not today", for reasons that are worth writing down:
+
+- **There is no trainable checkpoint of the shipping model.** Aalto publishes only the CTranslate2 conversion
+  (`model.bin`, float16, 3.1 GB); fine-tuning needs the Transformers weights, and the converter only goes the
+  other way. The format is documented and the weights are unquantised, so a reverse conversion is possible in
+  principle, but nobody maintains one. The practical route is asking Aalto for the Transformers checkpoint.
+- **The models that do have trainable weights are far worse on conversation.** The corpus authors' own
+  measurement of the RU 30k-steps model on the Spjallrómur test set is 41.7 % WER (dev 39.1 %); the Aalto model
+  gets 22 % on the same kind of speech in this app (`05-measurements.md`). Starting again from
+  `openai/whisper-large-v3` means redoing Aalto's job: 1,000+ hours of Icelandic and days of GPU time.
+- **What a fine-tune on own data would take, once a checkpoint exists:** 5–20 hours of the user's own recordings
+  with corrected transcripts; a rented 24 GB GPU (an RTX 4090 is $0.35–0.70/h) for LoRA - whisper-large trains
+  in under 10 GB with int8 weights and LoRA adapters, and a 12-hour dataset for 3 epochs took 6–8 hours on a
+  small GPU in the PEFT write-up; a held-out set of the user's own meetings to prove it got better rather than
+  worse; and `ct2-transformers-converter` to get back to faster-whisper. The literature on domain adaptation
+  puts 10–50 hours of in-domain audio at a 20–40 % relative WER reduction; a 49-hour LoRA of stock large-v3 on
+  Raddrómur podcasts moved Samrómur WER by one point. Rúnarsson's RU thesis (2025) did full fine-tuning of
+  Whisper small and large on Spjallrómur-clean and is the closest published precedent (the PDF sits behind a
+  captcha on Skemman, so its numbers are not quoted here).
+- **What the app does instead, today:** it learns from the user's corrections (`src/main/corrections.ts`): a
+  mishearing the user has fixed twice is fixed automatically from then on, and every correction goes to the AI
+  pass as an example. Together with the kept audio, those corrected lines are exactly the (audio, text) pairs a
+  future fine-tune would train on - so nothing done now is wasted if a checkpoint appears.
+
+Sources: Aalto model card and file list (huggingface.co/Aalto-Speech-Synthesis/whisper-large-v3-Icelandic-finetuned-ct2);
+Spjallrómur results (github.com/icelandic-lt/spjallromur, `results/asr/`); PEFT+INT8 Whisper training
+(github.com/openai/whisper/discussions/988); jonasaise/whisper-large-v3-lora-is model card; Diabolocom,
+"Everything you need to know about fine-tuning an ASR"; Rúnarsson, "Analyzing Icelandic Conversation using
+State-of-the-Art ASR models", RU 2025 (skemman.is/handle/1946/50888).

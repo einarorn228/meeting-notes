@@ -351,6 +351,12 @@ export const en: Record<TranslationKey, string> = {
     'Names of people, companies, projects and specialised terms – one per line. Words from another language that you use while speaking belong here too. The list corrects their spelling in the transcript and makes the AI write them correctly in the minutes.',
   'settings.vocab.placeholder': 'Guðrún Jónsdóttir\nHafnarfjarðarbær\nSAP\nonboarding\n…',
   'settings.vocab.count': '{n} terms',
+  'settings.corrections.title': 'Learned corrections',
+  'settings.corrections.hint':
+    'When you fix a line of a transcript, the app remembers what the recogniser wrote and what you wrote instead. A correction you have made twice is applied to new transcripts by itself, and all of them go to the AI pass.',
+  'settings.corrections.empty': 'None yet. Double-click a transcript line to fix it – the app learns from that.',
+  'settings.corrections.times': '{n}×',
+  'settings.corrections.forget': 'Forget',
 
   'settings.detection.enabled': 'Detect meetings automatically',
   'settings.detection.enabledHint': 'Fundarritari notifies you when a meeting app is in use and offers to start recording.',

@@ -181,6 +181,43 @@ context makes the word unmistakable** - leaving them alone otherwise, because a 
 fabrication in the user's own record. The vocabulary list reaches that pass too, which is why English terms
 belong in it (and why they must stay out of the recogniser - see the section above).
 
+## Where the word errors actually are
+
+Sixty utterances of Spjallrómur (332 s, 22 speakers, every conversation in the shard), through the engine
+exactly as the app runs it - beam 5, int8, no prompt: 31.3 % WER as scored. Eight of the sixty, all from one
+conversation (`198f2863`), score 96.6 %, and those eight are not the recogniser's doing: in that conversation
+the audio in a row does not belong to the row's text. What the model wrote for row 0082 ("það er ekkert betra
+en ísköld mjólk sko") is, word for word, the reference of row 0112 ninety seconds later; row 0047's output is
+row 0066's reference; and rows 0355–0447 carry byte-identical audio. It is the corpus's known alignment
+problem, and that conversation has been in every sample drawn from this shard, so the error rates above this
+section are a few points worse than the recogniser is.
+
+Without it: 52 utterances, 840 words, **22.0 % WER** - 20.8 % once the reference's own artefacts are dropped
+(`[HIK:…]` hesitation tags, `[UNK]`, "þ ú" split in two). For scale, the corpus authors' own run of the RU
+30k-steps model on the Spjallrómur test set reports 41.7 %. What the 22 % is made of:
+
+| | Words | Of the reference | What it is |
+|---|---|---|---|
+| Deletions | 94 | 11.2 % | 83 real words and 11 fillers. 33 sit in the last two words of an utterance, and 9 utterances of 52 lose their whole tail ("…spennt að halda áfram" came back as "…spennt að"). |
+| Substitutions | 59 | 7.0 % | 24 are within two letters of the right word (myndir/myndirðu, vill/vil, þessum/þessu): grammar the model got wrong on a word it heard. 35 are a different word. |
+| Insertions | 32 | 3.8 % | Stutters kept as said ("en en en"), and the other speaker's words where the reference leaves them out ("af hverju má ekki segja nafnið"). |
+
+By length: 16.6 % on utterances up to 4 s, 22.8 % at 4–8 s, 24.9 % above 8 s.
+
+Two things follow. The largest single item is words dropped at the end of a cut, which is a property of how
+the model stops, not of what it heard. And the next largest is near misses of inflection and a stutter kept -
+errors a reader of the whole sentence fixes without hearing the audio, which is what the AI pass is for, and
+why the user's corrections now go to it (below).
+
+## What the user's corrections teach the app
+
+The recogniser cannot be taught a word (the vocabulary section above), but the app can remember what the user
+fixed. When a transcript line is edited, the words that changed are stored as (recogniser wrote → user wrote)
+pairs - anchored on the words that stayed, at most four words a side, never a rewrite, never a dropped filler,
+never punctuation alone. A pair the user has made twice is applied to new lines by itself (whole words,
+case-insensitive, a capital kept at the start of a line); all of them go to the AI pass as examples, most
+frequent first. `src/main/corrections.ts`; the list is under Settings → Vocabulary, with a way to forget one.
+
 ## Recognising a voice from an earlier meeting (not shipped)
 
 If a voice could be recognised again, naming someone once would be enough. Measured with the app's own speaker

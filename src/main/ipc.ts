@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url'
 import type { ChannelId, ExportRequest, MainEventName, MainEvents, Meeting, PendingSegment, RecordingState, Settings } from '../shared/types'
 import { LOCAL_MODELS } from '../shared/types'
 import { chatWithAllMeetings, chatWithMeeting, punctuateMeeting, summarizeMeeting } from './ai/notes'
+import { applyCorrections, forgetCorrection, learnFromEdit, listCorrections } from './corrections'
 import { diarizeMeeting } from './diarize'
 import { llmConfigured, testLlm } from './ai/llm'
 import { TEMPLATES } from './ai/templates'
@@ -202,7 +203,7 @@ export async function importAudioPath(src: string, opts: { wait?: boolean; stere
       if (!engine.transcribeFile) throw new Error('Vélin styður ekki skrár')
       await engine.transcribeFile(dest, { language: st.language, vocabulary: st.vocabulary, stereo: !!opts.stereo }, {
         onSegment: (seg) => {
-          const s = { id: randomUUID(), channel: seg.channel, start: seg.start, end: seg.end, text: seg.text, speaker: seg.speaker ?? 'others' }
+          const s = { id: randomUUID(), channel: seg.channel, start: seg.start, end: seg.end, text: applyCorrections(seg.text), speaker: seg.speaker ?? 'others' }
           segments.push(s)
           broadcast('transcript:segment', { meetingId: id, segment: s })
         },
@@ -305,9 +306,14 @@ export function registerIpc(ctx: AppContext): void {
   h('meetings:updateSegment', (_e, id: string, segmentId: string, patch: { text?: string; speaker?: string }) => {
     const m = loadMeeting(id)
     if (!m) throw new Error('Fundur fannst ekki')
+    const was = m.segments.find((s) => s.id === segmentId)
+    // An edited line is the user telling the app what the recogniser got wrong; remember it.
+    if (was && patch.text !== undefined && patch.text !== was.text) learnFromEdit(was.text, patch.text)
     const segments = m.segments.map((s) => (s.id === segmentId ? { ...s, ...patch } : s))
     return saveMeeting({ ...m, segments })
   })
+  h('corrections:list', () => listCorrections())
+  h('corrections:forget', (_e, from: string) => forgetCorrection(from))
   h('meetings:audioUrl', (_e, id: string) => {
     const m = loadMeeting(id)
     if (!m?.audioFile) return null

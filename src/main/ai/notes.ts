@@ -1,9 +1,10 @@
 import { dateIs, dateTimeIs } from '../../shared/dates'
 import type { ActionItem, ChatMessage, Meeting, Summary } from '../../shared/types'
+import { correctionsForPrompt } from '../corrections'
 import { getSettings } from '../settings'
 import { allMeetings, loadMeeting, saveMeeting, transcriptText } from '../store'
 import { complete } from './llm'
-import { chatSystemPrompt, punctuateSystemPrompt, summarySystemPrompt, summaryUserPrompt, transcriptForPrompt } from './prompts'
+import { chatSystemPrompt, correctionsLine, punctuateSystemPrompt, summarySystemPrompt, summaryUserPrompt, transcriptForPrompt } from './prompts'
 import { getTemplate } from './templates'
 
 export type ProgressFn = (stage: string, progress?: number) => void
@@ -69,7 +70,7 @@ export async function summarizeMeeting(meetingId: string, templateId: string | u
   const tpl = getTemplate(templateId ?? s.llm.summaryTemplateId)
   const lang = m.language === 'auto' ? 'is' : m.language
   progress('summary', 0.1)
-  const res = await complete(summarySystemPrompt(lang), [{ role: 'user', content: summaryUserPrompt(m, tpl, lang, vocabularyFor(m)) }], { maxTokens: 16000, temperature: 0.2 })
+  const res = await complete(summarySystemPrompt(lang), [{ role: 'user', content: summaryUserPrompt(m, tpl, lang, vocabularyFor(m), correctionsForPrompt()) }], { maxTokens: 16000, temperature: 0.2 })
   progress('summary', 0.9)
   const parsed = parseSummary(res.text)
   const summary: Summary = { templateId: tpl.id, language: lang, generatedAt: new Date().toISOString(), provider: res.provider, model: res.model, markdown: res.text.trim(), ...parsed }
@@ -87,6 +88,7 @@ export async function punctuateMeeting(meetingId: string, progress: ProgressFn):
   if (!m) throw new Error('Fundur fannst ekki')
   const lang = m.language === 'auto' ? 'is' : m.language
   const vocab = vocabularyFor(m)
+  const corrections = correctionsLine(correctionsForPrompt(), lang)
   const segs = m.segments.filter((x) => !x.partial)
   const batchSize = 40
   for (let i = 0; i < segs.length; i += batchSize) {
@@ -94,7 +96,7 @@ export async function punctuateMeeting(meetingId: string, progress: ProgressFn):
     progress('punctuate', i / segs.length)
     // The lines go up in batches of 40, so each call sees only a slice of the meeting. The title and the
     // participants cost almost nothing and are often what lets the model place a word it is unsure of.
-    const context = [`Fundur: ${m.title}`, m.participants.length ? `Þátttakendur: ${m.participants.join(', ')}` : '', vocab.length ? `Orðalisti: ${vocab.join(', ')}` : '']
+    const context = [`Fundur: ${m.title}`, m.participants.length ? `Þátttakendur: ${m.participants.join(', ')}` : '', vocab.length ? `Orðalisti: ${vocab.join(', ')}` : '', corrections]
       .filter(Boolean)
       .join('\n')
     const user = context + '\n\nLínur:\n' + batch.map((x) => x.text.replace(/\s+/g, ' ').trim()).join('\n')

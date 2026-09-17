@@ -132,6 +132,7 @@ Flipar fundarins:
 - **Ensk orð inni í íslensku tali** („up to speed“, heiti á forritum) eru skrifuð eins og þau hljóma – talgreiningarlíkanið kann aðeins íslensku. Gervigreindin lagar þau eftir á þegar samhengið er ótvírætt. Settu ensku orðin sem þið notið í **Orðaforða**, þá rata þau rétt inn.
 
 ![Orðaforði](img/13-stillingar-ordafordi.png)
+- **Leiðréttu villur beint í uppskriftinni** (tvísmelltu á línu). Forritið man hvað talgreinirinn skrifaði og hvað þú skrifaðir í staðinn: leiðréttingu sem þú hefur gert tvisvar gerir það sjálft í næstu uppskriftum, og allar fara þær með í gervigreindaryfirferðina. Listinn er undir **Stillingar → Orðaforði → Lærðar leiðréttingar**, þar sem má líka láta forritið gleyma einstakri leiðréttingu.
 - Fyrsta skiptið sem talgreiningin fer í gang eftir að tölvan er ræst tekur hún um hálfa mínútu að hlaða líkaninu. Ræstu Fundarritara nokkrum mínútum fyrir fund.
 - Á hægum tölvum getur uppskriftin dregist aðeins aftur úr talinu. Það er í lagi – allt kemur að lokum, og allt hljóðið er geymt.
 

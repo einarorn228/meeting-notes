@@ -148,6 +148,16 @@ export interface Highlight {
   note: string
 }
 
+/** A mishearing the user has fixed in a transcript, kept so the app can fix it next time. */
+export interface Correction {
+  /** What the recogniser wrote: lowercased, edge punctuation stripped, single spaces. */
+  from: string
+  /** What the user wrote instead, as typed. */
+  to: string
+  count: number
+  lastAt: string
+}
+
 export interface ActionItem {
   text: string
   owner?: string

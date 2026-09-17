@@ -356,6 +356,12 @@ export const is = {
     'Nöfn fólks, fyrirtækja, verkefna og sérhæfð hugtök – eitt í hverja línu. Ensk orð sem þið notið í íslensku tali eiga líka heima hér. Listinn lagar stafsetningu þeirra í uppskriftinni og lætur gervigreindina skrifa þau rétt í fundargerðinni.',
   'settings.vocab.placeholder': 'Guðrún Jónsdóttir\nHafnarfjarðarbær\nSAP\nonboarding\n…',
   'settings.vocab.count': '{n} orð',
+  'settings.corrections.title': 'Lærðar leiðréttingar',
+  'settings.corrections.hint':
+    'Þegar þú lagar línu í uppskrift man forritið hvað talgreinirinn skrifaði og hvað þú skrifaðir í staðinn. Leiðrétting sem þú hefur gert tvisvar er gerð sjálfkrafa í nýjum uppskriftum, og þær fara allar með í gervigreindaryfirferðina.',
+  'settings.corrections.empty': 'Engar enn. Tvísmelltu á línu í uppskrift til að laga hana – forritið lærir af því.',
+  'settings.corrections.times': '{n}×',
+  'settings.corrections.forget': 'Gleyma',
 
   'settings.detection.enabled': 'Greina fundi sjálfkrafa',
   'settings.detection.enabledHint': 'Fundarritari lætur vita þegar fundarforrit er í notkun og býður upp á að hefja upptöku.',
