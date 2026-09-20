@@ -70,8 +70,13 @@ export function deleteMeeting(id: string): void {
   if (existsSync(d)) rmSync(d, { recursive: true, force: true })
 }
 
+/**
+ * The recorder always writes audio.wav, but an imported file keeps its own extension (meeting.audioFile).
+ * Resolving from the meeting means delete, re-transcribe and diarization act on the file that is actually
+ * there, instead of an audio.wav that never existed for an imported .mp3 or .m4a.
+ */
 export function audioPath(id: string): string {
-  return join(meetingDir(id), 'audio.wav')
+  return join(meetingDir(id), loadMeeting(id)?.audioFile ?? 'audio.wav')
 }
 
 export function deleteAudio(id: string): void {
