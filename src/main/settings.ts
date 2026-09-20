@@ -1,5 +1,5 @@
 import { app } from 'electron'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DEFAULT_SETTINGS, type Settings } from '../shared/types'
 
@@ -42,7 +42,13 @@ export function getSettings(): Settings {
 
 export function saveSettings(patch: Partial<Settings>): Settings {
   cached = deepMerge(getSettings(), patch)
-  writeFileSync(settingsPath(), JSON.stringify(cached, null, 2), 'utf8')
+  // Write through a temporary file like saveMeeting does. A crash mid-write would otherwise leave unparseable
+  // JSON, and getSettings() falls back to DEFAULT_SETTINGS on a parse error - silently losing every setting,
+  // including the API keys, without telling anyone.
+  const p = settingsPath()
+  const tmp = p + '.tmp'
+  writeFileSync(tmp, JSON.stringify(cached, null, 2), 'utf8')
+  renameSync(tmp, p)
   for (const l of listeners) l(cached)
   return cached
 }
