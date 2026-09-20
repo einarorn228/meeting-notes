@@ -81,8 +81,11 @@ tæknival, íslensk mállíkön) – allar ákvarðanir eru rökstuddar þar.
 npm run typecheck && npm test            # TypeScript + vitest
 cd sidecar && pip install -r requirements.txt pytest jiwer && pytest -q
 ```
-Gögn eru geymd í `%APPDATA%/fundarritari/data` (Windows), `~/Library/Application Support/fundarritari/data` (macOS)
-eða `~/.config/fundarritari/data` (Linux): ein mappa á fund með `meeting.json` og `audio.wav`.
+Gögn eru geymd undir gagnamöppu forritsins: `%APPDATA%/Fundarritari` (Windows),
+`~/Library/Application Support/Fundarritari` (macOS) eða `~/.config/Fundarritari` (Linux). Þar eru
+`settings.json` (stillingar og API-lyklar, ódulkóðað), `data/meetings/<id>/` með `meeting.json` og hljóðskránni,
+`data/corrections.json` (leiðréttingar notandans) og `models/` með sóttu talgreiningar- og
+ræðumannagreiningarlíkönunum (~3 GB).
 
 ---
 

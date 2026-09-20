@@ -3,7 +3,7 @@
  * pin the output language, forbid drift into English/Danish/Norwegian, give headings verbatim, use low temperature,
  * fixed frames for action items to avoid declension errors, and pass names/vocabulary for normalisation.
  */
-import { dateIs, dateTimeIs } from '../../shared/dates'
+import { dateTimeIs } from '../../shared/dates'
 import type { Meeting, SummaryTemplate } from '../../shared/types'
 import { formatTime } from '../store'
 

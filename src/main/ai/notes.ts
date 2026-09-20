@@ -1,4 +1,4 @@
-import { dateIs, dateTimeIs } from '../../shared/dates'
+import { dateIs } from '../../shared/dates'
 import type { ActionItem, ChatMessage, Meeting, Summary } from '../../shared/types'
 import { correctionsForPrompt } from '../corrections'
 import { getSettings } from '../settings'
