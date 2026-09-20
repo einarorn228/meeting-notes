@@ -22,7 +22,7 @@ CATALOGUE: Dict[str, Dict[str, object]] = {
         "punctuated": False,
     },
     "lvl-large-is": {
-        "repo": "language-and-voice-lab/whisper-large-icelandic-62640-steps-967h-ct2",
+        "repo": "language-and-voice-lab/whisper-large-icelandic-30k-steps-1000h-ct2",
         "size_mb": 3100,
         "punctuated": False,
     },

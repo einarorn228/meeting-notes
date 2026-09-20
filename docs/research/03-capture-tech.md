@@ -26,7 +26,8 @@ Granola (device-level capture, Me/Others by channel). All keep mic and system as
   modern 8-core x86 CPU int8 ≈ 1–5×; thin laptops ≈ real time or slower → cloud engine recommended there.
 
 ## Streaming design (Whisper is not a streaming model)
-Per channel: Silero VAD → cut on ≥ 600 ms silence or at 24 s → decode chunk → final segment. Optional partials by
+Per channel: Silero VAD → cut on a silence threshold or at 24 s → decode chunk → final segment. (600 ms was the
+first guess here; the shipped value is 900 ms, measured in `05-measurements.md` §1 - same WER, 10-15 % fewer cuts.) Optional partials by
 re-decoding the growing chunk. Speaker = channel (mic → "Ég", system → "Aðrir"). Hallucination guards on silence.
 
 ## Cloud SDKs
