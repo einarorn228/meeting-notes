@@ -67,7 +67,10 @@ export async function stopRecording(): Promise<{ meetingId?: string }> {
   broadcast('recording:state', idleState())
   broadcast('meetings:changed', undefined)
   broadcast('meeting:updated', { meetingId: meeting.id })
-  void postProcess(meeting.id)
+  // An incomplete transcript is never summarised: the minutes would cover half a meeting and look whole. It is
+  // written out again from the recording instead, and the usual post-processing follows from there.
+  if (meeting.status === 'interrupted' && meeting.audioFile) void retranscribe(meeting.id).catch(() => {})
+  else void postProcess(meeting.id)
   return { meetingId: meeting.id }
 }
 

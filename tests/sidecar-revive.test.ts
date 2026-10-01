@@ -27,6 +27,8 @@ const fake = vi.hoisted(() => {
     send(cmd: Record<string, unknown>): void {
       if (!state.alive) throw new Error('sidecar not running')
       state.sent.push(cmd)
+      // Nothing is queued in these tests, so the backlog is written out at once.
+      if (cmd.type === 'stop') queueMicrotask(() => state.emit('event', { type: 'stopped', session_id: cmd.session_id }))
     },
     request: async (): Promise<Record<string, unknown>> => ({}),
     /** What the real manager does when the process exits: forget it, then tell listeners. */

@@ -41,12 +41,14 @@ beforeAll(() => {
   for (let i = 0; i < 100; i++) w.write('mic', new Int16Array(1600).fill(50), i * 100) // 10 s, then the app dies
   write(meeting('silent', 'recording')) // interrupted before any audio was kept
   write(meeting('finished', 'done'))
+  // The app was closed while the backlog was still being written out: the audio is whole, the transcript is not.
+  writeFileSync(join(write(meeting('draining', 'processing')), 'audio.wav'), 'x')
 })
 
 describe('recovering a meeting the app never finished', () => {
   it('marks it interrupted and takes its length from the audio on disk', () => {
     const ids = recoverInterruptedMeetings().map((m) => m.id).sort()
-    expect(ids).toEqual(['crashed', 'silent'])
+    expect(ids).toEqual(['crashed', 'draining', 'silent'])
     const m = loadMeeting('crashed')!
     expect(m.status).toBe('interrupted')
     expect(m.durationSec).toBeGreaterThanOrEqual(9)
@@ -58,6 +60,12 @@ describe('recovering a meeting the app never finished', () => {
     const m = loadMeeting('silent')!
     expect(m.status).toBe('interrupted')
     expect(m.audioFile).toBeUndefined()
+  })
+
+  it('lets a meeting that was still being written out be finished from its audio', () => {
+    const m = loadMeeting('draining')!
+    expect(m.status).toBe('interrupted')
+    expect(m.audioFile).toBe('audio.wav')
   })
 
   it('leaves finished meetings alone', () => {

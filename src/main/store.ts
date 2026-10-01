@@ -96,7 +96,14 @@ export function recoverInterruptedMeetings(): Meeting[] {
   const out: Meeting[] = []
   for (const id of readdirSync(meetingsDir())) {
     const m = loadMeeting(id)
-    if (!m || m.status !== 'recording') continue
+    // 'processing' too: a backlog or a re-transcription that the app was closed on never finishes by itself,
+    // and the meeting used to sit there with half a transcript and no way to complete it.
+    if (!m || (m.status !== 'recording' && m.status !== 'processing')) continue
+    if (m.status === 'processing') {
+      // Its recording was closed properly (and an imported file is not a WAV to measure), so only the state changes.
+      out.push(saveMeeting({ ...m, status: 'interrupted', audioFile: m.audioFile && existsSync(audioPath(id)) ? m.audioFile : undefined }))
+      continue
+    }
     const audio = audioPath(id)
     const seconds = existsSync(audio) ? wavDurationSec(audio) : 0
     const hasAudio = seconds >= 1

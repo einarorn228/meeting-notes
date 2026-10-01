@@ -37,6 +37,8 @@ export interface TranscriptionEngine {
   pushAudio(channel: ChannelId, pcm: Int16Array, tMs: number): void
   /** Flush and finish; resolves once all final segments have been delivered. */
   stop(): Promise<void>
+  /** True after stop() when part of the meeting's speech has no text. Engines that cannot tell leave it unset. */
+  readonly incomplete?: boolean
   /** Transcribe a whole file (stereo WAV: left=mic, right=system, or mono). */
   transcribeFile?(path: string, opts: { language: Language; vocabulary: string[]; stereo: boolean }, cb: EngineCallbacks): Promise<void>
 }

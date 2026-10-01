@@ -267,7 +267,11 @@ export class RecordingSession extends EventEmitter {
     // Reload in case the renderer saved notes/title while we were recording (store cache is shared).
     const latest = loadMeeting(this.meetingId)
     this.meeting = { ...(latest ?? this.meeting), segments: this.meeting.segments, highlights: this.meeting.highlights, durationSec: this.meeting.durationSec, endedAt: this.meeting.endedAt }
-    this.meeting.status = 'done'
+    // "done" is what lets the minutes be written, so it is only said of a whole transcript. One that did not
+    // finish - no engine, audio dropped, a backlog that never drained - is interrupted while the audio exists
+    // to finish it from. Without audio nothing more can be made of it.
+    const incomplete = !this.engine || !!this.engine.incomplete
+    this.meeting.status = incomplete && this.meeting.audioFile ? 'interrupted' : 'done'
     saveMeeting(this.meeting)
     this.emit('finished', this.meetingId)
     return this.meeting

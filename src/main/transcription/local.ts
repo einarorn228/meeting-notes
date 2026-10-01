@@ -8,6 +8,12 @@ import type { EngineCallbacks, EngineStartOptions, TranscriptionEngine } from '.
 const REVIVE_ATTEMPTS = 5
 const REVIVE_DELAY_MS = 3000
 const REVIVE_SLOWEST_MS = 20000
+/**
+ * How long the sidecar may say nothing after stop before it counts as wedged. Not a limit on the backlog itself:
+ * a large model on a CPU is slower than speech, so a long meeting ends with tens of minutes still queued, and a
+ * flat ten-minute wait once saved a 45-minute meeting with 25 minutes of transcript.
+ */
+const STOP_IDLE_MS = 10 * 60 * 1000
 
 const delay = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
@@ -25,9 +31,12 @@ export class LocalEngine implements TranscriptionEngine {
   /** True between the sidecar dying and it taking audio again; audio is dropped meanwhile. */
   private down = false
   private reviving: Promise<void> | null = null
+  /** Set once any of the meeting's speech is known to have no text: audio dropped, or a backlog that never finished. */
+  incomplete = false
 
   async start(opts: EngineStartOptions, cb: EngineCallbacks): Promise<void> {
     this.cb = cb
+    this.incomplete = false
     cb.onStatus('Ræsi staðbundna talgreiningu…')
     await sidecar.ensureModel()
     const s = getSettings()
@@ -127,10 +136,15 @@ export class LocalEngine implements TranscriptionEngine {
   }
 
   pushAudio(channel: ChannelId, pcm: Int16Array, tMs: number): void {
-    if (!this.sessionId || this.down) return
+    if (!this.sessionId) return
+    if (this.down) {
+      this.incomplete = true
+      return
+    }
     try {
       sidecar.send({ type: 'audio', session_id: this.sessionId, channel, t_ms: tMs, pcm: Buffer.from(pcm.buffer, pcm.byteOffset, pcm.byteLength).toString('base64') })
     } catch {
+      this.incomplete = true
       // Audio arrives ten times a second: one notice about the outage, not one per frame.
       void this.revive()
     }
@@ -144,22 +158,71 @@ export class LocalEngine implements TranscriptionEngine {
     // A restart in flight must not re-open the session behind the stop.
     await this.reviving?.catch(() => {})
     if (this.down) {
+      this.incomplete = true
       this.sessionId = ''
       if (this.listener) sidecar.off('event', this.listener)
       this.listener = null
       return
     }
     try {
-      // Bounded: a wedged backend must not leave the user on a spinner indefinitely. On timeout the meeting
-      // is still saved with everything transcribed so far, and the audio can be re-transcribed later.
-      await sidecar
-        .request({ type: 'stop', session_id: this.sessionId }, 'stopped', 10 * 60 * 1000)
-        .catch((e) => this.cb?.onError(`Uppskrift kláraðist ekki: ${e instanceof Error ? e.message : String(e)}. Fundurinn er vistaður með því sem komið var; þú getur endurunnið hljóðið úr fundinum.`))
+      await this.drain(this.sessionId)
+    } catch (e) {
+      // The caller finishes the meeting from its audio; what is said here is why that became necessary.
+      this.incomplete = true
+      this.cb?.onError(`Uppskrift kláraðist ekki: ${e instanceof Error ? e.message : String(e)}. Hljóðið er til, svo fundurinn er skrifaður upp úr því.`)
     } finally {
       if (this.listener) sidecar.off('event', this.listener)
       this.listener = null
       this.sessionId = ''
     }
+  }
+
+  /**
+   * Sends stop and waits for the backlog to be written out. The wait has no fixed length: every event of this
+   * session (a finished line, the shrinking count) starts the clock again, so only a sidecar that has gone
+   * silent for STOP_IDLE_MS is given up on - and that one is shut down, so it stops working on text nobody
+   * will receive and the next request gets a fresh process.
+   */
+  private drain(sessionId: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      let timer: NodeJS.Timeout | undefined
+      const cleanup = (): void => {
+        clearTimeout(timer)
+        sidecar.off('event', onEvent)
+        sidecar.off('exit', onExit)
+      }
+      const arm = (): void => {
+        clearTimeout(timer)
+        timer = setTimeout(() => {
+          cleanup()
+          sidecar.shutdown()
+          reject(new Error(`talgreiningin svaraði engu í ${STOP_IDLE_MS / 60000} mínútur`))
+        }, STOP_IDLE_MS)
+      }
+      const onEvent = (ev: SidecarEvent): void => {
+        if (ev.session_id !== sessionId) return
+        if (ev.type === 'stopped') {
+          cleanup()
+          resolve()
+        } else if (ev.type === 'error' && ev.fatal) {
+          cleanup()
+          reject(new Error(String(ev.message)))
+        } else arm()
+      }
+      const onExit = (code: number | null): void => {
+        cleanup()
+        reject(new Error(`talgreiningarferlið hætti óvænt (kóði ${code})`))
+      }
+      sidecar.on('event', onEvent)
+      sidecar.on('exit', onExit)
+      arm()
+      try {
+        sidecar.send({ type: 'stop', session_id: sessionId })
+      } catch (e) {
+        cleanup()
+        reject(e)
+      }
+    })
   }
 
   async transcribeFile(path: string, opts: { language: string; vocabulary: string[]; stereo: boolean }, cb: EngineCallbacks): Promise<void> {
