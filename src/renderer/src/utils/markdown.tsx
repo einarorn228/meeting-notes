@@ -105,15 +105,17 @@ export function parseBlocks(md: string): Block[] {
   return blocks
 }
 
-const INLINE = /(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`|~~[^~]+~~|\*[^*\n]+\*|_[^_\n]+_|\[[^\]]+\]\((https?:\/\/[^)\s]+)\))/g
+const INLINE = /(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`|~~[^~]+~~|\*[^*\n]+\*|_[^_\n]+_|\[[^\]]+\]\((https?:\/\/[^)\s]+)\))/
 
 export function renderInline(text: string, keyPrefix = 'i'): ReactNode[] {
   const out: ReactNode[] = []
   let last = 0
   let m: RegExpExecArray | null
   let k = 0
-  INLINE.lastIndex = 0
-  while ((m = INLINE.exec(text)) !== null) {
+  // Own regex per call: bold and italic recurse, and a shared /g regex would have its lastIndex reset by the
+  // inner call, so this loop would match the same token forever.
+  const re = new RegExp(INLINE.source, 'g')
+  while ((m = re.exec(text)) !== null) {
     if (m.index > last) out.push(text.slice(last, m.index))
     const tok = m[0]
     const key = `${keyPrefix}-${k++}`
