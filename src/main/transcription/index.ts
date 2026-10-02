@@ -1,4 +1,6 @@
 import type { EngineId } from '../../shared/types'
+import { LOCAL_ONLY_REFUSAL } from '../../shared/local-only'
+import { getSettings } from '../settings'
 import { AzureEngine, testAzure } from './azure'
 import { ElevenLabsEngine, testElevenLabs } from './elevenlabs'
 import { LocalEngine } from './local'
@@ -7,6 +9,8 @@ import { sidecar } from './sidecar'
 import type { TranscriptionEngine } from './types'
 
 export function createEngine(id: EngineId): TranscriptionEngine {
+  // Enforced here, where the audio would leave, so no caller and no stale setting can route around it.
+  if (getSettings().localOnly) return new LocalEngine()
   switch (id) {
     case 'azure':
       return new AzureEngine()
@@ -22,6 +26,7 @@ export function createEngine(id: EngineId): TranscriptionEngine {
 
 export async function testEngine(id: string): Promise<{ ok: boolean; message: string }> {
   try {
+    if (id !== 'local' && getSettings().localOnly) return { ok: false, message: LOCAL_ONLY_REFUSAL }
     switch (id) {
       case 'azure':
         return await testAzure()

@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto'
 import type { ChannelId, Highlight, Meeting, PendingSegment, RecordingState, Segment } from '../shared/types'
 import { applyCorrections, learnFromEdit } from './corrections'
 import { getSettings } from './settings'
+import { effectiveEngine } from '../shared/local-only'
 import { audioPath, newId, saveMeeting, updateMeeting, loadMeeting } from './store'
 import { createEngine } from './transcription'
 import type { EngineSegment, TranscriptionEngine } from './transcription/types'
@@ -57,8 +58,8 @@ export class RecordingSession extends EventEmitter {
       createdAt: now.toISOString(),
       durationSec: 0,
       language: opts.language || s.language,
-      engine: s.engine,
-      modelId: s.engine === 'local' ? s.local.modelId : undefined,
+      engine: effectiveEngine(s),
+      modelId: effectiveEngine(s) === 'local' ? s.local.modelId : undefined,
       status: 'recording',
       app: opts.app,
       calendarEventId: opts.calendarEventId,
@@ -82,7 +83,7 @@ export class RecordingSession extends EventEmitter {
     if (s.audio.captureMic) channels.push('mic')
     if (s.audio.captureSystemAudio) channels.push('system')
     if (s.storage.keepAudio) this.wav = new StereoWavWriter(audioPath(this.meetingId))
-    this.engine = createEngine(s.engine)
+    this.engine = createEngine(effectiveEngine(s))
     try {
       await this.engine.start(
         { language: this.meeting.language, channels: channels.length ? channels : ['mic', 'system'], vocabulary: s.vocabulary, partials: s.local.partials },

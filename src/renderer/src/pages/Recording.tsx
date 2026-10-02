@@ -103,6 +103,11 @@ export function RecordingPage(): ReactNode {
           <span>{mmss(rec.elapsedSec)}</span>
         </div>
         <LanguageChip language={settings.language} />
+        {settings.localOnly && (
+          <span title={t('rec.localOnlyHint')}>
+            <Badge tone="success">{t('rec.localOnly')}</Badge>
+          </span>
+        )}
         <LevelMeter level={rec.levels.mic} icon="mic" label={t('rec.mic')} warn={silentMic} compact />
         <LevelMeter level={rec.levels.system} icon="speaker" label={t('rec.system')} warn={silentSystem} compact />
       </header>

@@ -8,6 +8,7 @@ import { useEvent } from '@/hooks/useEvent'
 import { useSettings } from '@/hooks/useSettings'
 import { useToast } from '@/hooks/useToast'
 import { listMicrophones, testCapture } from '@/audio/capture'
+import { leavesTheMachine } from '@shared/local-only'
 import { Alert, Badge, Button, Card, Field, ProgressBar, Select, TextArea, TextInput, Toggle } from '@/components/ui'
 import { Icon } from '@/components/Icons'
 import { LevelMeter } from '@/components/LevelMeter'
@@ -540,11 +541,15 @@ function PrivacySection(): ReactNode {
   const { t } = useI18n()
   const { settings, update } = useSettings()
   const [info, setInfo] = useState<{ platform: string; version: string; dataDir: string } | null>(null)
+  const leaving = leavesTheMachine(settings)
   useEffect(() => {
     api.getPlatform().then(setInfo).catch(() => {})
   }, [])
   return (
     <Card title={t('settings.section.privacy')}>
+      <Toggle checked={settings.localOnly} onChange={(v) => update({ localOnly: v })} label={t('settings.privacy.localOnly')} hint={t('settings.privacy.localOnlyHint')} />
+      {settings.localOnly && leaving.length > 0 && <Alert tone="warning">{t(`settings.privacy.localOnlyOverrides.${leaving.join('+') as 'speech' | 'text' | 'speech+text'}`)}</Alert>}
+      {settings.localOnly && settings.llm.provider !== 'ollama' && <Alert tone="info">{t('settings.privacy.localOnlyNoAi')}</Alert>}
       <Alert tone="info">{t('settings.privacy.localNote')}</Alert>
       <Field label={t('settings.privacy.consent')} hint={t('settings.privacy.consentHint')}>
         <TextArea rows={3} value={settings.consentNotice} onChange={(e) => update({ consentNotice: e.target.value })} />

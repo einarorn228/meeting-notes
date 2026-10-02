@@ -68,6 +68,8 @@ export interface Settings {
   /** Default spoken language for meetings. */
   language: Language
   engine: EngineId
+  /** Nothing said in a meeting leaves this computer: local speech engine, and no hosted language model. */
+  localOnly: boolean
   local: {
     modelId: string
     device: 'auto' | 'cpu' | 'cuda'
@@ -310,6 +312,7 @@ export const DEFAULT_SETTINGS: Settings = {
   uiLanguage: 'is',
   language: 'is',
   engine: 'local',
+  localOnly: false,
   local: { modelId: 'aalto-large-v3-is', device: 'auto', computeType: 'auto', partials: false, diarize: true },
   azure: { key: '', region: 'northeurope', diarization: true },
   elevenlabs: { apiKey: '', diarize: true },

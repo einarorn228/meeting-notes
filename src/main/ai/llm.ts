@@ -2,6 +2,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
 import { getSettings } from '../settings'
+import { LOCAL_ONLY_REFUSAL, llmStaysLocal } from '../../shared/local-only'
 
 export interface LlmMessage {
   role: 'user' | 'assistant'
@@ -94,6 +95,9 @@ function anthropicFailure(err: unknown): Error {
  */
 export function llmConfigured(): boolean {
   const s = getSettings().llm
+  // A provider the switch forbids is as unavailable as one without a key: the meeting is simply left without
+  // AI clean-up, instead of failing with an error after every recording.
+  if (getSettings().localOnly && !llmStaysLocal(s)) return false
   switch (s.provider) {
     case 'anthropic':
       return !!s.anthropicApiKey.trim()
@@ -112,6 +116,8 @@ export async function complete(
   opts: { maxTokens?: number; temperature?: number; effort?: Effort } = {}
 ): Promise<LlmResult> {
   const s = getSettings().llm
+  // Enforced here, where the transcript would leave, so every caller - minutes, punctuation, chat - is covered.
+  if (getSettings().localOnly && !llmStaysLocal(s)) throw new Error(LOCAL_ONLY_REFUSAL)
   const maxTokens = opts.maxTokens ?? 16000
   const temperature = opts.temperature ?? 0.2
   switch (s.provider) {

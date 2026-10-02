@@ -7,6 +7,7 @@ import type { ChannelId, ExportRequest, MainEventName, MainEvents, Meeting, Pend
 import { LOCAL_MODELS } from '../shared/types'
 import { chatWithAllMeetings, chatWithMeeting, punctuateMeeting, summarizeMeeting } from './ai/notes'
 import { applyCorrections, forgetCorrection, learnFromEdit, listCorrections } from './corrections'
+import { effectiveEngine } from '../shared/local-only'
 import { diarizeMeeting } from './diarize'
 import { llmConfigured, testLlm } from './ai/llm'
 import { TEMPLATES } from './ai/templates'
@@ -121,7 +122,7 @@ async function retranscribe(meetingId: string, opts?: { engine?: string; languag
   const path = audioPath(meetingId)
   if (!existsSync(path)) throw new Error('Hljóðskrá er ekki til fyrir þennan fund')
   const st = getSettings()
-  const engineId = (opts?.engine as Settings['engine']) ?? st.engine
+  const engineId = st.localOnly ? 'local' : ((opts?.engine as Settings['engine']) ?? st.engine)
   const language = opts?.language ?? m.language
   const engine = createEngine(engineId)
   if (!engine.transcribeFile) throw new Error('Þessi vél styður ekki endurritun úr skrá')
@@ -183,8 +184,8 @@ export async function importAudioPath(src: string, opts: { wait?: boolean; stere
     createdAt: new Date().toISOString(),
     durationSec: 0,
     language: st.language,
-    engine: st.engine,
-    modelId: st.engine === 'local' ? st.local.modelId : undefined,
+    engine: effectiveEngine(st),
+    modelId: effectiveEngine(st) === 'local' ? st.local.modelId : undefined,
     status: 'processing',
     app: 'import',
     participants: [],
@@ -199,7 +200,7 @@ export async function importAudioPath(src: string, opts: { wait?: boolean; stere
   saveMeeting(meeting)
   broadcast('meetings:changed', undefined)
   const work = (async () => {
-    const engine = createEngine(st.engine)
+    const engine = createEngine(effectiveEngine(st))
     const progress = (stage: string, progress?: number): void => broadcast('ai:progress', { meetingId: id, stage, progress })
     const segments: Meeting['segments'] = []
     try {
