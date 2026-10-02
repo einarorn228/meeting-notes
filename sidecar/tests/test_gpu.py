@@ -114,6 +114,9 @@ def test_activate_puts_the_pack_on_the_search_path(tmp_path: Path, monkeypatch: 
 
 def test_hello_says_whether_the_pack_is_there(sink: RecordingSink, fake_engine: FakeEngine, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("FUNDARRITARI_GPU_DIR", str(tmp_path))
+    # The pack is Windows-only; pin it so the test says the same thing on the Linux and macOS runners.
+    windows_pack = gpu.PACKS["win32"]
+    monkeypatch.setattr(gpu, "pack_for_platform", lambda platform=None: windows_pack)
     worker = TranscriptionWorker(sink).start()
     try:
         srv = Server(io.StringIO(), sink, engine=fake_engine, worker=worker)  # type: ignore[arg-type]
