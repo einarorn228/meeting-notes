@@ -54,6 +54,7 @@ class Server:
         self._sessions_lock = threading.Lock()
         self._unknown_sessions_warned: set[str] = set()
         self._shutdown = threading.Event()
+        self._gpu_lock = threading.Lock()
         self._handlers: Dict[str, Callable[[Dict[str, Any]], None]] = {
             "hello": self.cmd_hello,
             "list_models": self.cmd_list_models,
@@ -175,6 +176,10 @@ class Server:
 
     def cmd_install_gpu(self, cmd: Dict[str, Any]) -> None:
         target_dir = _require(cmd, "target_dir")
+        request_id = cmd.get("request_id")
+        # Two installs would share one target; the app sends one at a time, this makes sure of it.
+        if not self._gpu_lock.acquire(blocking=False):
+            raise CommandError("install_gpu is already running")
 
         def run() -> None:
             def progress(fraction: float, done: int, total: int) -> None:
@@ -188,12 +193,14 @@ class Server:
                 # Not activated here: CUDA does not recover inside a process that already failed to load it (a
                 # reload on the GPU hung when tried), so the app restarts this process once it is idle.
                 gpu.install(target_dir, on_progress=progress)
-                self._emit.emit("gpu_installed", target_dir=target_dir)
+                self._emit.emit("gpu_installed", target_dir=target_dir, **({"request_id": request_id} if request_id else {}))
                 self._status(self._idle_or_ready(), "Skjákortsstuðningur uppsettur")
             except Exception as exc:  # noqa: BLE001
                 log.exception("GPU pack install failed")
                 self._status(self._idle_or_ready(), f"Tókst ekki að sækja skjákortsstuðning: {exc}")
-                self._error(f"install_gpu failed: {exc}")
+                self._error(f"install_gpu failed: {exc}", request_id=request_id)
+            finally:
+                self._gpu_lock.release()
 
         # Its own thread, like a model download: 400 MB must not hold up a meeting being transcribed.
         threading.Thread(target=run, name="install-gpu", daemon=True).start()

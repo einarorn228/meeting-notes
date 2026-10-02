@@ -10,6 +10,7 @@ import { join, dirname } from 'node:path'
 import { createInterface } from 'node:readline'
 import { totalmem } from 'node:os'
 import { EventEmitter } from 'node:events'
+import { randomUUID } from 'node:crypto'
 import { LOCAL_MODELS, type SidecarStatus } from '../../shared/types'
 import { getSettings } from '../settings'
 
@@ -117,6 +118,10 @@ export class SidecarManager extends EventEmitter {
   private busy = new Set<string>()
   /** The GPU pack arrived while the sidecar was busy: restart it as soon as the work is done. */
   private restartWhenIdle = false
+  /** Requests still waiting for their reply (model downloads and loads included). */
+  private pending = 0
+  /** One GPU install at a time: the startup auto-install and the Settings button share it. */
+  private gpuInstall: Promise<void> | null = null
 
   private crashDetail(): string {
     const lines = this.stderrTail.filter((l) => l.trim()).slice(-6)
@@ -217,6 +222,8 @@ export class SidecarManager extends EventEmitter {
       }
       const env = { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1', HF_HUB_DISABLE_TELEMETRY: '1', FUNDARRITARI_GPU_DIR: gpuDir() }
       this.stderrTail = []
+      // A fresh process puts the GPU pack on its search path by itself, so a pending restart is moot.
+      this.restartWhenIdle = false
       const proc = spawn(rt.cmd, rt.args, { cwd: rt.cwd ?? dirname(rt.cmd), env, windowsHide: true })
       this.proc = proc
       const rl = createInterface({ input: proc.stdout })
@@ -290,9 +297,9 @@ export class SidecarManager extends EventEmitter {
     if (ev.type === 'error' && ev.fatal) {
       this.setStatus({ state: 'error', message: ev.message as string })
     }
-    if (ev.type === 'stopped' || ev.type === 'file_done' || (ev.type === 'error' && ev.request_id)) {
+    if (ev.type === 'stopped' || ev.type === 'file_done' || ev.type === 'diarized' || (ev.type === 'error' && ev.request_id)) {
       this.busy.delete(String(ev.session_id ?? ev.request_id ?? ''))
-      if (this.restartWhenIdle && this.busy.size === 0) void this.restartForGpu()
+      queueMicrotask(() => void this.maybeRestartForGpu())
     }
     this.emit('event', ev)
   }
@@ -301,12 +308,17 @@ export class SidecarManager extends EventEmitter {
     if (!this.proc) throw new Error('sidecar not running')
     this.proc.stdin.write(JSON.stringify(cmd) + '\n')
     if (cmd.type === 'start' && cmd.session_id) this.busy.add(String(cmd.session_id))
-    if (cmd.type === 'transcribe_file' && cmd.request_id) this.busy.add(String(cmd.request_id))
+    if ((cmd.type === 'transcribe_file' || cmd.type === 'diarize_file') && cmd.request_id) this.busy.add(String(cmd.request_id))
   }
 
   /** Sends a command and waits for a reply event of `replyType` (or an `error` with the same request). */
   request(cmd: Record<string, unknown>, replyType: string, timeoutMs = 600000): Promise<SidecarEvent> {
     return new Promise((resolve, reject) => {
+      this.pending++
+      let settled = false
+      // The process this request went to. If it is replaced, its own exit still has to fail the request:
+      // the manager-level 'exit' is only emitted for the current process.
+      const target = this.proc
       const timer = setTimeout(() => {
         cleanup()
         reject(new Error(`sidecar timeout waiting for ${replyType}`))
@@ -325,13 +337,20 @@ export class SidecarManager extends EventEmitter {
         cleanup()
         reject(new Error(`Talgreiningarferlið hætti óvænt (kóði ${code}).${this.crashDetail()}`))
       }
+      const onTargetExit = (code: number | null): void => onExit(code)
       const cleanup = (): void => {
+        if (settled) return
+        settled = true
+        this.pending--
         clearTimeout(timer)
         this.off('event', onEvent)
         this.off('exit', onExit)
+        target?.off('exit', onTargetExit)
+        queueMicrotask(() => void this.maybeRestartForGpu())
       }
       this.on('event', onEvent)
       this.on('exit', onExit)
+      target?.once('exit', onTargetExit)
       if (cmd.type === 'hello') this.pendingHello = (ev) => onEvent(ev)
       try {
         this.send(cmd)
@@ -356,16 +375,33 @@ export class SidecarManager extends EventEmitter {
    * already failed to load it), so the sidecar is restarted and the model reloaded - straight away when idle,
    * otherwise as soon as the meeting being transcribed is finished.
    */
-  async installGpu(): Promise<void> {
+  installGpu(): Promise<void> {
+    this.gpuInstall ??= this.installGpuInner().finally(() => {
+      this.gpuInstall = null
+    })
+    return this.gpuInstall
+  }
+
+  private async installGpuInner(): Promise<void> {
     await this.ensureStarted()
     this.setStatus({ state: 'installing-gpu', progress: 0, message: 'Sæki skjákortsstuðning…' })
-    await this.request({ type: 'install_gpu', target_dir: gpuDir() }, 'gpu_installed', 2 * 3600 * 1000)
+    await this.request({ type: 'install_gpu', request_id: randomUUID(), target_dir: gpuDir() }, 'gpu_installed', 2 * 3600 * 1000)
     this.status.gpu = { ...(this.status.gpu ?? { present: true }), installed: true }
-    if (this.busy.size === 0) await this.restartForGpu()
-    else {
-      this.restartWhenIdle = true
-      this.setStatus({ state: 'idle', message: 'Skjákortsstuðningur uppsettur. Tekur gildi þegar þessari uppskrift lýkur.' })
-    }
+    this.restartWhenIdle = true
+    const restart = this.maybeRestartForGpu()
+    if (restart) await restart
+    else this.setStatus({ state: 'idle', message: 'Skjákortsstuðningur uppsettur. Tekur gildi þegar þessari vinnslu lýkur.' })
+  }
+
+  /** Nothing is being transcribed, diarized, downloaded, loaded or started, so a restart cannot cut work short. */
+  private idle(): boolean {
+    return this.busy.size === 0 && this.pending === 0 && !this.loading && !this.starting
+  }
+
+  /** Restarts for the GPU pack if one is waiting and the sidecar is idle; returns the restart, or null. */
+  private maybeRestartForGpu(): Promise<void> | null {
+    if (!this.restartWhenIdle || !this.idle()) return null
+    return this.restartForGpu()
   }
 
   /**
@@ -383,7 +419,6 @@ export class SidecarManager extends EventEmitter {
   private async restartForGpu(): Promise<void> {
     this.restartWhenIdle = false
     this.shutdown()
-    this.loadedModel = null
     await this.ensureModel().catch((e) => this.emit('log', `reload after GPU install failed: ${String(e)}`))
   }
 
@@ -438,6 +473,10 @@ export class SidecarManager extends EventEmitter {
   }
 
   shutdown(): void {
+    // The old process may exit after its successor is up, and that late exit is ignored, so its state is
+    // dropped here: a stale loadedModel would skip load_model on the new process and queue audio forever.
+    this.loadedModel = null
+    this.busy.clear()
     if (this.proc) {
       try {
         this.send({ type: 'shutdown' })

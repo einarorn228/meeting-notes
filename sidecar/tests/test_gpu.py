@@ -66,6 +66,24 @@ def test_a_failed_download_keeps_a_working_earlier_pack(tmp_path: Path):
     assert (target / "cublasLt64_12.dll").read_bytes() == b"cublasLt"
 
 
+def test_stops_a_download_that_is_larger_than_the_pack(tmp_path: Path):
+    data = _wheel()
+    small = gpu.Pack(url="https://example.invalid/w.whl", sha256=hashlib.sha256(data).hexdigest(), size=len(data) - 1, members=MEMBERS)
+    with pytest.raises(RuntimeError, match="stærri"):
+        gpu.install(tmp_path / "gpu", pack=small, opener=_opener(data))
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_replaces_an_earlier_pack(tmp_path: Path):
+    data = _wheel()
+    target = tmp_path / "gpu"
+    target.mkdir()
+    (target / "stale.dll").write_bytes(b"old")
+    gpu.install(target, pack=_pack(data), opener=_opener(data))
+    assert sorted(f.name for f in target.iterdir()) == ["cublas64_12.dll", "cublasLt64_12.dll"]
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["gpu"]
+
+
 def test_is_installed_needs_every_library(tmp_path: Path):
     assert not gpu.is_installed(tmp_path, platform="win32")
     (tmp_path / "cublas64_12.dll").write_bytes(b"x")
@@ -114,9 +132,33 @@ def test_install_gpu_command_reports_done(sink: RecordingSink, fake_engine: Fake
     worker = TranscriptionWorker(sink).start()
     try:
         srv = Server(io.StringIO(), sink, engine=fake_engine, worker=worker)  # type: ignore[arg-type]
-        srv.handle({"type": "install_gpu", "target_dir": str(tmp_path / "gpu")})
-        sink.wait_for(lambda e: e["type"] == "gpu_installed", timeout=10)
+        srv.handle({"type": "install_gpu", "request_id": "g1", "target_dir": str(tmp_path / "gpu")})
+        done = sink.wait_for(lambda e: e["type"] == "gpu_installed", timeout=10)
+        assert done["request_id"] == "g1"
         assert (tmp_path / "gpu" / "cublas64_12.dll").is_file()
         assert any(e.get("state") == "installing-gpu" for e in sink.of_type("status"))
     finally:
+        worker.stop()
+
+
+def test_a_second_install_while_one_runs_is_refused(sink: RecordingSink, fake_engine: FakeEngine, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    import threading
+
+    release = threading.Event()
+
+    def slow_install(target_dir, on_progress=None):
+        release.wait(5)
+
+    monkeypatch.setattr(gpu, "install", slow_install)
+    worker = TranscriptionWorker(sink).start()
+    try:
+        srv = Server(io.StringIO(), sink, engine=fake_engine, worker=worker)  # type: ignore[arg-type]
+        srv.handle({"type": "install_gpu", "request_id": "a", "target_dir": str(tmp_path / "gpu")})
+        srv.handle({"type": "install_gpu", "request_id": "b", "target_dir": str(tmp_path / "gpu")})
+        err = sink.wait_for(lambda e: e["type"] == "error" and e.get("request_id") == "b")
+        assert "already running" in err["message"]
+        release.set()
+        sink.wait_for(lambda e: e["type"] == "gpu_installed" and e.get("request_id") == "a")
+    finally:
+        release.set()
         worker.stop()

@@ -17,6 +17,7 @@ import logging
 import os
 import shutil
 import sys
+import tempfile
 import time
 import urllib.request
 import zipfile
@@ -97,9 +98,10 @@ def install(
         raise RuntimeError(f"Skjákortsstuðningur er ekki í boði á {sys.platform}.")
     target = Path(target_dir)
     target.parent.mkdir(parents=True, exist_ok=True)
-    part = target.parent / (target.name + ".download")
-    staging = target.parent / (target.name + ".staging")
-    shutil.rmtree(staging, ignore_errors=True)
+    # Private to this call and on the same volume as the target, so the final step is a rename.
+    work = Path(tempfile.mkdtemp(prefix=target.name + ".", dir=target.parent))
+    part = work / "pack.whl"
+    staging = work / "staging"
     open_url = opener or (lambda url: urllib.request.urlopen(url, timeout=60))  # noqa: S310 - pinned https URL
     digest = hashlib.sha256()
     done = 0
@@ -110,25 +112,35 @@ def install(
                 block = response.read(1 << 20)
                 if not block:
                     break
+                done += len(block)
+                if done > pack.size:
+                    raise RuntimeError("Skjákortsskráin var stærri en hún á að vera; henni var hent.")
                 out.write(block)
                 digest.update(block)
-                done += len(block)
                 now = time.monotonic()
                 if on_progress is not None and (now - last >= 0.5 or done == pack.size):
                     last = now
                     on_progress(min(done / pack.size, 0.99), done, pack.size)
-        if digest.hexdigest() != pack.sha256:
+        if done != pack.size or digest.hexdigest() != pack.sha256:
             raise RuntimeError("Skjákortsskráin passaði ekki við væntanlegt fingrafar; henni var hent.")
         staging.mkdir(parents=True)
         with zipfile.ZipFile(part) as wheel:
             for member in pack.members:
                 with wheel.open(member) as src, open(staging / Path(member).name, "wb") as dst:
                     shutil.copyfileobj(src, dst, 1 << 20)
-        shutil.rmtree(target, ignore_errors=True)
-        staging.rename(target)
+        # Swap by renames, never by deleting in place: a locked DLL makes the first rename fail loudly with the
+        # old pack untouched, instead of leaving a half-deleted pack behind.
+        old = work / "old"
+        if target.exists():
+            target.rename(old)
+        try:
+            staging.rename(target)
+        except OSError:
+            if old.exists():
+                old.rename(target)
+            raise
     finally:
-        part.unlink(missing_ok=True)
-        shutil.rmtree(staging, ignore_errors=True)
+        shutil.rmtree(work, ignore_errors=True)
     if on_progress is not None:
         on_progress(1.0, done, pack.size)
     log.info("GPU pack installed in %s", target)

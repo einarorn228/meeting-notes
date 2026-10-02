@@ -73,6 +73,12 @@ vi.mock('node:child_process', async (orig) => {
 const { SidecarManager } = await import('../src/main/transcription/sidecar')
 
 const all = (): FakeProc[] => procs.list as FakeProc[]
+/** The sidecar finishing the install it was asked for (the reply carries that request's id). */
+const installed = (): void => {
+  const p = (procs.list as FakeProc[]).find((x) => x.received.some((c) => c.type === 'install_gpu'))!
+  const cmd = p.received.find((c) => c.type === 'install_gpu')!
+  p.reply({ type: 'gpu_installed', request_id: cmd.request_id, target_dir: cmd.target_dir })
+}
 const last = (): FakeProc => all()[all().length - 1]
 
 function manager(): InstanceType<typeof SidecarManager> {
@@ -102,7 +108,7 @@ describe('the GPU pack', () => {
     const installing = m.installGpu()
     await vi.waitFor(() => expect(last().received.some((c) => c.type === 'install_gpu' && c.target_dir === join(root, 'gpu'))).toBe(true))
     procs.gpuPack = true
-    last().reply({ type: 'gpu_installed', target_dir: join(root, 'gpu') })
+    installed()
     await installing
     await vi.waitFor(() => expect(all()).toHaveLength(2))
     await vi.waitFor(() => expect(m.modelInfo?.device).toBe('cuda'))
@@ -116,7 +122,7 @@ describe('the GPU pack', () => {
     const installing = m.installGpu()
     await vi.waitFor(() => expect(last().received.some((c) => c.type === 'install_gpu')).toBe(true))
     procs.gpuPack = true
-    last().reply({ type: 'gpu_installed' })
+    installed()
     await installing
     await new Promise((r) => setTimeout(r, 50))
     expect(all()).toHaveLength(1)
@@ -132,7 +138,7 @@ describe('the GPU pack', () => {
     const auto = m.installGpuIfUseful()
     await vi.waitFor(() => expect(last().received.some((c) => c.type === 'install_gpu')).toBe(true))
     procs.gpuPack = true
-    last().reply({ type: 'gpu_installed' })
+    installed()
     expect(await auto).toBe(true)
     // Installed now, so a second start of the app does not fetch it again.
     expect(await m.installGpuIfUseful()).toBe(false)
@@ -151,12 +157,65 @@ describe('the GPU pack', () => {
     const installing = m.installGpu()
     await vi.waitFor(() => expect(last().received.some((c) => c.type === 'install_gpu')).toBe(true))
     procs.gpuPack = true
-    last().reply({ type: 'gpu_installed' })
+    installed()
     await installing
     await vi.waitFor(() => expect(all()).toHaveLength(2))
     await vi.waitFor(() => expect(all()[0].killed).toBe(true))
     // The old process's exit must not be taken for the new one dying.
     expect(() => m.send({ type: 'hello' })).not.toThrow()
     expect(m.getStatus().state).not.toBe('error')
+  })
+
+  it('does not cut speaker detection short', async () => {
+    const m = manager()
+    await m.ensureModel()
+    m.send({ type: 'diarize_file', request_id: 'd1', path: 'x.wav' })
+    const installing = m.installGpu()
+    await vi.waitFor(() => expect(last().received.some((c) => c.type === 'install_gpu')).toBe(true))
+    procs.gpuPack = true
+    installed()
+    await installing
+    await new Promise((r) => setTimeout(r, 50))
+    expect(all()).toHaveLength(1)
+    all()[0].reply({ type: 'diarized', request_id: 'd1', segments: [] })
+    await vi.waitFor(() => expect(all()).toHaveLength(2))
+  })
+
+  it('shares one install between the startup auto-install and the Settings button', async () => {
+    const m = manager()
+    await m.ensureModel()
+    const a = m.installGpu()
+    const b = m.installGpu()
+    await vi.waitFor(() => expect(last().received.some((c) => c.type === 'install_gpu')).toBe(true))
+    expect(all()[0].received.filter((c) => c.type === 'install_gpu')).toHaveLength(1)
+    procs.gpuPack = true
+    installed()
+    await Promise.all([a, b])
+  })
+})
+
+describe('replacing the sidecar for any reason', () => {
+  it('loads the model on the new process even when the old one exits late', async () => {
+    // The stop drain gives up on a stuck sidecar with shutdown(), and the transcript is then finished from the
+    // audio on a new one. The old process takes up to two seconds to die, after the new one is already up.
+    const m = manager()
+    await m.ensureModel()
+    m.shutdown()
+    await m.ensureModel()
+    expect(all()).toHaveLength(2)
+    expect(all()[1].received.some((c) => c.type === 'load_model')).toBe(true)
+    await vi.waitFor(() => expect(all()[0].killed).toBe(true))
+    expect(m.modelInfo).not.toBeNull()
+  })
+
+  it('fails a request when the process it went to dies, even after it was replaced', async () => {
+    const m = manager()
+    await m.ensureStarted()
+    const old = last()
+    const waiting = m.request({ type: 'download_model', model_id: 'x', repo: 'r', models_dir: root }, 'model_downloaded', 60000)
+    m.shutdown()
+    await m.ensureStarted()
+    old.kill()
+    await expect(waiting).rejects.toThrow(/hætti óvænt/)
   })
 })
