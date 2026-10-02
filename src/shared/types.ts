@@ -272,13 +272,15 @@ export interface CalendarEvent {
 }
 
 export interface SidecarStatus {
-  state: 'not-installed' | 'installing' | 'idle' | 'loading-model' | 'downloading-model' | 'ready' | 'error'
+  state: 'not-installed' | 'installing' | 'installing-gpu' | 'idle' | 'loading-model' | 'downloading-model' | 'ready' | 'error'
   message?: string
   progress?: number
   modelId?: string
   device?: string
   pythonPath?: string
   installedModels?: string[]
+  /** An NVIDIA card is visible, and whether the optional GPU pack (cuBLAS) that lets it be used is installed. */
+  gpu?: { present: boolean; installed: boolean; sizeMb?: number }
 }
 
 export interface ExportRequest {

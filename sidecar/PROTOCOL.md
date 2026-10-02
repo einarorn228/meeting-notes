@@ -11,6 +11,7 @@ object (an *event*). stderr is free-form logging. Audio is PCM16 little-endian m
 | `hello` | – | reply with `ready` info (version, device availability) |
 | `list_models` | `models_dir` | reply `models` with installed model ids |
 | `download_model` | `model_id`, `repo`, `models_dir` | download (huggingface_hub snapshot) with `progress` events, then `model_downloaded` |
+| `install_gpu` | `target_dir` | download NVIDIA's cuBLAS wheel (pinned URL + SHA-256), unpack its two DLLs into `target_dir`; `status` `installing-gpu` with `progress`, then `gpu_installed`. Takes effect after a restart: the sidecar puts `FUNDARRITARI_GPU_DIR` on its DLL search path at startup |
 | `load_model` | `model_id`, `repo`, `models_dir`, `device` (`auto|cpu|cuda`), `compute_type` (`auto|int8|float16|float32`), `threads` (int, optional) | load model (download if missing); emits `status` `loading-model`, then `model_loaded` |
 | `start` | `session_id`, `language` (`is`, `en`, `auto`), `channels` (`["mic","system"]`), `vocabulary` (list of strings), `partials` (bool), `punctuated` (bool: model writes punctuation itself) | begin a streaming session |
 | `audio` | `session_id`, `channel`, `t_ms` (int, ms since session start of the first sample), `pcm` (base64 PCM16) | audio chunk (typically 100 ms) |
@@ -23,11 +24,12 @@ object (an *event*). stderr is free-form logging. Audio is PCM16 little-endian m
 
 | type | fields |
 |---|---|
-| `ready` | `version`, `cuda` (bool), `python`, `faster_whisper` |
+| `ready` | `version`, `cuda` (bool: an NVIDIA GPU is visible), `gpu_pack` (bool: the cuBLAS pack is in `FUNDARRITARI_GPU_DIR`), `gpu_pack_mb` (download size, null where no pack exists), `python`, `faster_whisper` |
 | `status` | `state` (`idle|loading-model|downloading-model|ready|error`), `message`, `progress` (0..1, optional), `model_id`, `device` |
 | `progress` | `model_id`, `progress` (0..1), `downloaded_mb`, `total_mb` |
 | `models` | `installed` (list of ids) |
 | `model_downloaded` | `model_id` |
+| `gpu_installed` | `target_dir` |
 | `model_loaded` | `model_id`, `device`, `compute_type`, `load_seconds` |
 | `pending` | `session_id`, `channel`, `seg_id`, `start` (s), `end` (s), `queue` (cuts still waiting for text) - a cut was queued; its text follows in a `segment` with the same `seg_id` |
 | `segment` | `session_id` or `request_id`, `channel`, `seg_id` (streaming only), `start` (s), `end` (s), `text` (empty = nothing was said, closes the `pending`), `partial` (bool), `avg_logprob`, `no_speech_prob` |

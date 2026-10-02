@@ -47,8 +47,11 @@ Windows). Við fyrstu notkun býr Fundarritari til einangrað Python-umhverfi, s
 líkanið (~3 GB) í gagnamöppuna sína. Þetta gerist sjálfkrafa; fylgstu með í *Stillingar → Talgreining*.
 Pakkar úr CI innihalda forbyggða þjónustu (PyInstaller) og þurfa þá ekki Python.
 
-Vélbúnaður: large-líkanið er ~1× rauntími á 4–8 kjarna örgjörva (int8), miklu hraðara með NVIDIA skjákorti
-(veldu *CUDA* í stillingum) eða Apple Silicon. Á hægum fartölvum er Azure Speech besti kosturinn.
+Vélbúnaður: large-líkanið er ~1× rauntími á 4–8 kjarna örgjörva (int8). Með NVIDIA skjákorti er það um 4×
+rauntími (mælt á RTX 4050 fartölvu: 3,95× á móti 1,35× á 8 örgjörvaþráðum). Á Windows sækir Fundarritari sjálfur
+skjákortsstuðninginn (cuBLAS frá NVIDIA, 397 MB, fest með SHA-256) í `%APPDATA%/Fundarritari/gpu` þegar það finnur
+kort, og endurræsir talgreininn þegar hann er laus. Hnappur í *Stillingar → Talgreining* gerir það sama handvirkt.
+Á hægum fartölvum án skjákorts er Azure Speech besti kosturinn.
 
 ### Skýjaþjónustur (valfrjálst)
 | Þjónusta | Til hvers | Lykill |

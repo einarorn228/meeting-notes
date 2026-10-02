@@ -33,6 +33,14 @@ export function modelsDir(): string {
   return d
 }
 
+/**
+ * The optional GPU pack (NVIDIA's cuBLAS, ~400 MB), fetched on request into the user's data folder rather than
+ * shipped to every machine. The sidecar puts it on its DLL search path at startup.
+ */
+export function gpuDir(): string {
+  return join(app.getPath('userData'), 'gpu')
+}
+
 function venvDir(): string {
   return join(app.getPath('userData'), 'sidecar-venv')
 }
@@ -105,6 +113,10 @@ export class SidecarManager extends EventEmitter {
   private loading: Promise<void> | null = null
   /** Last stderr lines, so a crash-on-startup reports *why* instead of a bare "sidecar exited". */
   private stderrTail: string[] = []
+  /** Recording sessions and file transcriptions the sidecar is working on; it is only restarted when empty. */
+  private busy = new Set<string>()
+  /** The GPU pack arrived while the sidecar was busy: restart it as soon as the work is done. */
+  private restartWhenIdle = false
 
   private crashDetail(): string {
     const lines = this.stderrTail.filter((l) => l.trim()).slice(-6)
@@ -203,7 +215,7 @@ export class SidecarManager extends EventEmitter {
         this.setStatus({ state: 'not-installed', message: 'Staðbundin talgreining er ekki uppsett' })
         throw new Error('sidecar-not-installed')
       }
-      const env = { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1', HF_HUB_DISABLE_TELEMETRY: '1' }
+      const env = { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1', HF_HUB_DISABLE_TELEMETRY: '1', FUNDARRITARI_GPU_DIR: gpuDir() }
       this.stderrTail = []
       const proc = spawn(rt.cmd, rt.args, { cwd: rt.cwd ?? dirname(rt.cmd), env, windowsHide: true })
       this.proc = proc
@@ -217,7 +229,11 @@ export class SidecarManager extends EventEmitter {
       })
       proc.on('exit', (code, signal) => {
         this.emit('log', `sidecar exited with code ${code}${signal ? ` (${signal})` : ''}`)
+        // A process replaced on purpose (shutdown, then a fresh start) can exit after its successor is up. That
+        // is not the running sidecar dying, and treating it so would orphan the new one.
+        if (this.proc && this.proc !== proc) return
         this.proc = null
+        this.busy.clear()
         this.loadedModel = null
         if (code || signal)
           this.setStatus({
@@ -231,6 +247,7 @@ export class SidecarManager extends EventEmitter {
         this.setStatus({ state: 'error', message: String(e) })
       })
       const hello = await this.request({ type: 'hello' }, 'ready', 60000)
+      this.status.gpu = { present: !!hello.cuda, installed: !!hello.gpu_pack, sizeMb: typeof hello.gpu_pack_mb === 'number' ? hello.gpu_pack_mb : undefined }
       this.setStatus({ state: 'idle', message: `Tilbúið (faster-whisper ${hello.faster_whisper ?? ''}${hello.cuda ? ', CUDA' : ''})` })
     })()
     try {
@@ -273,12 +290,18 @@ export class SidecarManager extends EventEmitter {
     if (ev.type === 'error' && ev.fatal) {
       this.setStatus({ state: 'error', message: ev.message as string })
     }
+    if (ev.type === 'stopped' || ev.type === 'file_done' || (ev.type === 'error' && ev.request_id)) {
+      this.busy.delete(String(ev.session_id ?? ev.request_id ?? ''))
+      if (this.restartWhenIdle && this.busy.size === 0) void this.restartForGpu()
+    }
     this.emit('event', ev)
   }
 
   send(cmd: Record<string, unknown>): void {
     if (!this.proc) throw new Error('sidecar not running')
     this.proc.stdin.write(JSON.stringify(cmd) + '\n')
+    if (cmd.type === 'start' && cmd.session_id) this.busy.add(String(cmd.session_id))
+    if (cmd.type === 'transcribe_file' && cmd.request_id) this.busy.add(String(cmd.request_id))
   }
 
   /** Sends a command and waits for a reply event of `replyType` (or an `error` with the same request). */
@@ -326,6 +349,42 @@ export class SidecarManager extends EventEmitter {
     this.setStatus({ state: 'downloading-model', modelId, progress: 0, message: `Sæki ${info.label} (${(info.sizeMb / 1000).toFixed(1)} GB)…` })
     await this.request({ type: 'download_model', model_id: modelId, repo: info.repo, models_dir: modelsDir() }, 'model_downloaded', 6 * 3600 * 1000)
     this.setStatus({ state: 'idle', modelId, progress: 1, message: 'Líkan sótt' })
+  }
+
+  /**
+   * Fetches the GPU pack. It cannot take effect in the running sidecar (CUDA does not recover in a process that
+   * already failed to load it), so the sidecar is restarted and the model reloaded - straight away when idle,
+   * otherwise as soon as the meeting being transcribed is finished.
+   */
+  async installGpu(): Promise<void> {
+    await this.ensureStarted()
+    this.setStatus({ state: 'installing-gpu', progress: 0, message: 'Sæki skjákortsstuðning…' })
+    await this.request({ type: 'install_gpu', target_dir: gpuDir() }, 'gpu_installed', 2 * 3600 * 1000)
+    this.status.gpu = { ...(this.status.gpu ?? { present: true }), installed: true }
+    if (this.busy.size === 0) await this.restartForGpu()
+    else {
+      this.restartWhenIdle = true
+      this.setStatus({ state: 'idle', message: 'Skjákortsstuðningur uppsettur. Tekur gildi þegar þessari uppskrift lýkur.' })
+    }
+  }
+
+  /**
+   * Fetches the GPU pack by itself when it would help: an NVIDIA card is there, a pack exists for this platform,
+   * and the user has not pinned the engine to the CPU. Nobody should have to find a setting to get a 3-5x faster
+   * transcript; the button in Settings stays as the manual retry.
+   */
+  async installGpuIfUseful(): Promise<boolean> {
+    const gpu = this.status.gpu
+    if (!gpu?.present || gpu.installed || !gpu.sizeMb || getSettings().local.device === 'cpu') return false
+    await this.installGpu()
+    return true
+  }
+
+  private async restartForGpu(): Promise<void> {
+    this.restartWhenIdle = false
+    this.shutdown()
+    this.loadedModel = null
+    await this.ensureModel().catch((e) => this.emit('log', `reload after GPU install failed: ${String(e)}`))
   }
 
   /** Loads the configured model if not already loaded (serialised so concurrent callers share one load). */

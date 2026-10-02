@@ -92,6 +92,10 @@ sem setningalok: forritið leyfir tæpa sekúndu af þögn áður en það klipp
 þremur punktum sem hreyfast – það þýðir *„þetta heyrðist og er í vinnslu“*. Þegar textinn er tilbúinn kemur hann
 í staðinn fyrir punktana.
 
+Sé NVIDIA skjákort í tölvunni sækir forritið sjálft skjákortsstuðning (um 400 MB, einu sinni) og skrifar þá
+um þrisvar sinnum hraðar upp. Í *Stillingar → Talgreining* sést undir **Skjákort** hvort hann er uppsettur og
+notaður.
+
 Á tölvu án skjákorts tekur hver stök setning lengri tíma en að segja hana. Þegar setningar safnast upp
 vinnur forritið nokkrar þeirra saman í einu – það er miklu fljótara – og þá birtist textinn í lengri bútum
 (nokkrar setningar í einni línu). Uppi í hægra horninu á uppskriftinni sést hversu langt á eftir textinn er,

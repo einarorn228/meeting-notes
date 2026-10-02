@@ -10,7 +10,7 @@ import sys
 import threading
 from typing import Any, Callable, Dict, Optional, TextIO
 
-from . import __version__, models
+from . import __version__, gpu, models
 from .engine import WhisperEngine, cuda_available
 from .events import EventSink
 from .filetranscribe import transcribe_file
@@ -58,6 +58,7 @@ class Server:
             "hello": self.cmd_hello,
             "list_models": self.cmd_list_models,
             "download_model": self.cmd_download_model,
+            "install_gpu": self.cmd_install_gpu,
             "load_model": self.cmd_load_model,
             "start": self.cmd_start,
             "audio": self.cmd_audio,
@@ -166,9 +167,36 @@ class Server:
             "ready",
             version=__version__,
             cuda=cuda_available(),
+            gpu_pack=gpu.is_installed(_gpu_dir()) if _gpu_dir() else False,
+            gpu_pack_mb=round(pack.size / 1e6) if (pack := gpu.pack_for_platform()) else None,
             python=platform.python_version(),
             faster_whisper=fw_version,
         )
+
+    def cmd_install_gpu(self, cmd: Dict[str, Any]) -> None:
+        target_dir = _require(cmd, "target_dir")
+
+        def run() -> None:
+            def progress(fraction: float, done: int, total: int) -> None:
+                self._status(
+                    "installing-gpu",
+                    f"Sæki skjákortsstuðning {done / 1e6:.0f} / {total / 1e6:.0f} MB",
+                    progress=round(fraction, 4),
+                )
+
+            try:
+                # Not activated here: CUDA does not recover inside a process that already failed to load it (a
+                # reload on the GPU hung when tried), so the app restarts this process once it is idle.
+                gpu.install(target_dir, on_progress=progress)
+                self._emit.emit("gpu_installed", target_dir=target_dir)
+                self._status(self._idle_or_ready(), "Skjákortsstuðningur uppsettur")
+            except Exception as exc:  # noqa: BLE001
+                log.exception("GPU pack install failed")
+                self._status(self._idle_or_ready(), f"Tókst ekki að sækja skjákortsstuðning: {exc}")
+                self._error(f"install_gpu failed: {exc}")
+
+        # Its own thread, like a model download: 400 MB must not hold up a meeting being transcribed.
+        threading.Thread(target=run, name="install-gpu", daemon=True).start()
 
     def cmd_list_models(self, cmd: Dict[str, Any]) -> None:
         models_dir = _require(cmd, "models_dir")
@@ -361,9 +389,17 @@ class Server:
         self._shutdown.set()
 
 
+def _gpu_dir() -> str:
+    """Where the app keeps the optional GPU pack (it passes the path in the environment)."""
+    return os.environ.get("FUNDARRITARI_GPU_DIR", "")
+
+
 def serve(stdin: Optional[TextIO] = None, stdout: Optional[TextIO] = None) -> int:
     """Run a server on real stdio with UTF-8 streams. Returns the exit code."""
     from .events import EventWriter
+
+    if _gpu_dir():
+        gpu.activate(_gpu_dir())
 
     in_stream = stdin if stdin is not None else sys.stdin
     out_stream = stdout if stdout is not None else sys.stdout

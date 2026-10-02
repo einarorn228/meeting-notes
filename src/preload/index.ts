@@ -76,6 +76,7 @@ export interface FundarritariApi {
   // ---- sidecar / local engine ----
   getSidecarStatus(): Promise<SidecarStatus>
   installSidecar(): Promise<void>
+  installGpu(): Promise<void>
   downloadModel(modelId: string): Promise<void>
   warmUpLocalEngine(): Promise<void>
   testEngine(engine: string): Promise<{ ok: boolean; message: string }>
@@ -152,6 +153,7 @@ const api: FundarritariApi = {
 
   getSidecarStatus: () => invoke('sidecar:status'),
   installSidecar: () => invoke('sidecar:install'),
+  installGpu: () => invoke('sidecar:installGpu'),
   downloadModel: (modelId) => invoke('sidecar:downloadModel', modelId),
   warmUpLocalEngine: () => invoke('sidecar:warmup'),
   testEngine: (engine) => invoke('engine:test', engine),

@@ -219,6 +219,7 @@ app.whenReady().then(() => {
     sidecar
       .isInstalled()
       .then((ok) => (ok ? sidecar.ensureModel() : undefined))
+      .then(() => sidecar.installGpuIfUseful())
       .catch((e) => console.error('warmup failed', e))
   }
 

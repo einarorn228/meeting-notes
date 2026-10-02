@@ -203,7 +203,7 @@ function EngineSection(): ReactNode {
   const local = settings.local
   const setLocal = (patch: Partial<Settings['local']>): void => update({ local: { ...local, ...patch } })
   const installed = sidecar?.installedModels ?? []
-  const sidecarBusy = sidecar && ['installing', 'loading-model', 'downloading-model'].includes(sidecar.state)
+  const sidecarBusy = sidecar && ['installing', 'installing-gpu', 'loading-model', 'downloading-model'].includes(sidecar.state)
 
   const engines: { id: EngineId; badge: string }[] = [
     { id: 'local', badge: t('settings.engine.private') },
@@ -256,6 +256,27 @@ function EngineSection(): ReactNode {
             </div>
             <div className="field-hint">{t('settings.engine.installHint')}</div>
           </div>
+
+          {sidecar?.gpu?.present && (
+            <div className="field">
+              <div className="field-label">{t('settings.engine.gpu')}</div>
+              {sidecar.gpu.installed ? (
+                <div className="row gap-md wrap">
+                  <Badge tone="success"><Icon name="check" size={11} /> {t('settings.engine.gpu.installed')}</Badge>
+                  <span className="muted small">{sidecar.device === 'cuda' ? t('settings.engine.gpu.inUse') : t('settings.engine.gpu.notYet')}</span>
+                </div>
+              ) : (
+                <>
+                  <div className="row gap-sm">
+                    <Button variant="primary" icon="download" loading={busy === 'gpu'} disabled={!!sidecarBusy} onClick={() => run('gpu', () => api.installGpu())}>
+                      {t('settings.engine.gpu.install', { mb: sidecar.gpu.sizeMb ?? 400 })}
+                    </Button>
+                  </div>
+                  <div className="field-hint">{t('settings.engine.gpu.hint')}</div>
+                </>
+              )}
+            </div>
+          )}
 
           <div className="field">
             <div className="field-label">{t('settings.engine.model')}</div>

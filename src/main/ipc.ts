@@ -364,6 +364,7 @@ export function registerIpc(ctx: AppContext): void {
   h('sidecar:status', () => sidecar.getStatus())
   h('sidecar:install', () => sidecar.install())
   h('sidecar:downloadModel', (_e, modelId: string) => sidecar.downloadModel(modelId))
+  h('sidecar:installGpu', () => sidecar.installGpu())
   h('sidecar:warmup', () => sidecar.ensureModel())
   h('engine:test', (_e, engine: string) => testEngine(engine))
 
