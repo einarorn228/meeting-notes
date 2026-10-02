@@ -307,6 +307,11 @@ export function registerIpc(ctx: AppContext): void {
     return next
   })
   h('meetings:updateSegment', (_e, id: string, segmentId: string, patch: { text?: string; speaker?: string }) => {
+    // While the meeting is being recorded the session owns the transcript; the file is only its last save.
+    if (session && session.meetingId === id) {
+      if (!session.editSegment(segmentId, patch)) throw new Error('Línan fannst ekki')
+      return session.getMeeting()
+    }
     const m = loadMeeting(id)
     if (!m) throw new Error('Fundur fannst ekki')
     const was = m.segments.find((s) => s.id === segmentId)

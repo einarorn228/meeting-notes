@@ -76,10 +76,13 @@ function TranscriptListInner({ segments, speakerNames, activeId, onSeek, onSpeak
   // Oldest first, so the queue reads top to bottom like the rest of the transcript.
   const pendingList = useMemo(() => [...(pending ?? [])].sort((a, b) => a.start - b.start), [pending])
 
+  // A line being corrected stays where it is: new speech keeps arriving, and following it to the bottom would
+  // scroll the text box out from under the person typing in it.
+  const anyEditing = editing !== null
   useEffect(() => {
-    if (!live || !stuck || !box.current) return
+    if (!live || !stuck || anyEditing || !box.current) return
     box.current.scrollTop = box.current.scrollHeight
-  }, [segments, partialList, pendingList, live, stuck])
+  }, [segments, partialList, pendingList, live, stuck, anyEditing])
 
   useEffect(() => {
     if (!activeId || live || !box.current) return

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { api } from '@/api'
 import { useI18n } from '@/i18n'
 import { useRouter } from '@/router'
@@ -10,7 +10,7 @@ import { LevelMeter } from '@/components/LevelMeter'
 import { TranscriptList } from '@/components/TranscriptList'
 import { LanguageChip } from '@/components/StatusBadge'
 import { PromptDialog } from '@/components/Modal'
-import { mmss } from '@/utils/format'
+import { errorMessage, mmss } from '@/utils/format'
 
 export function RecordingPage(): ReactNode {
   const { t } = useI18n()
@@ -44,6 +44,20 @@ export function RecordingPage(): ReactNode {
       if (notesTimer.current !== undefined) window.clearTimeout(notesTimer.current)
     },
     []
+  )
+
+  // Stable identity: the transcript list is memoised and must not re-render on every clock tick.
+  const onEdit = useCallback(
+    async (segmentId: string, text: string): Promise<void> => {
+      if (!meetingId) return
+      try {
+        await api.updateSegment(meetingId, segmentId, { text })
+      } catch (err) {
+        toast(t('toast.error', { msg: errorMessage(err) }), 'error')
+        throw err
+      }
+    },
+    [meetingId, t, toast]
   )
 
   if (!rec.state.active) {
@@ -141,7 +155,7 @@ export function RecordingPage(): ReactNode {
             {lag && <span className={`lag-chip${lag.behind ? ' behind' : ''}`}>{lag.text}</span>}
             <span className="engine-status">{sidecarBusy ? rec.sidecar?.message : rec.state.engineStatus || t('rec.engineStarting')}</span>
           </div>
-          <TranscriptList segments={rec.segments} partials={rec.partials} pending={rec.pending} live emptyText={t('rec.waiting')} />
+          <TranscriptList segments={rec.segments} partials={rec.partials} pending={rec.pending} live emptyText={t('rec.waiting')} onEdit={onEdit} />
         </section>
       </div>
 

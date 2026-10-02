@@ -6,7 +6,7 @@
 import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
 import type { ChannelId, Highlight, Meeting, PendingSegment, RecordingState, Segment } from '../shared/types'
-import { applyCorrections } from './corrections'
+import { applyCorrections, learnFromEdit } from './corrections'
 import { getSettings } from './settings'
 import { audioPath, newId, saveMeeting, updateMeeting, loadMeeting } from './store'
 import { createEngine } from './transcription'
@@ -160,6 +160,24 @@ export class RecordingSession extends EventEmitter {
 
   getMeeting(): Meeting {
     return this.meeting
+  }
+
+  /**
+   * Correct a line while the meeting is still running. The transcript lives here until the stop button, and
+   * every save writes it over the file, so an edit made to the file alone would be lost at the next save.
+   */
+  editSegment(segmentId: string, patch: { text?: string; speaker?: string }): Segment | undefined {
+    const segs = this.meeting.segments
+    const i = segs.findIndex((s) => s.id === segmentId)
+    if (i < 0) return undefined
+    const was = segs[i]
+    // An edited line is the user telling the app what the recogniser got wrong; remember it.
+    if (patch.text !== undefined && patch.text !== was.text) learnFromEdit(was.text, patch.text)
+    const next = { ...was, ...patch }
+    segs[i] = next
+    this.scheduleSave()
+    this.emit('segment', this.meetingId, next)
+    return next
   }
 
   /** Cuts announced by the engine that have no text yet (for a view that opens mid-recording). */
